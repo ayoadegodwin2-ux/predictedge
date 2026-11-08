@@ -1,0 +1,207 @@
+@import "tailwindcss";
+
+/* ============================================
+   DESIGN SYSTEM — Prediction Platform
+   Warm, trustworthy, human-centric palette
+   ============================================ */
+
+/* ---------- Color Tokens ---------- */
+:root {
+  /* Slate backgrounds (deep, warm undertone) */
+  --slate-950: #0c1220;
+  --slate-900: #111827;
+  --slate-800: #1e293b;
+  --slate-700: #334155;
+  --slate-600: #475569;
+  --slate-500: #64748b;
+  --slate-400: #94a3b8;
+  --slate-300: #cbd5e1;
+  --slate-200: #e2e8f0;
+  --slate-100: #f1f5f9;
+  --slate-50: #f8fafc;
+
+  /* White panel system */
+  --panel-bg: #ffffff;
+  --panel-bg-hover: #f8fafc;
+  --panel-border: #e2e8f0;
+  --panel-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.06), 0 1px 2px -1px rgb(0 0 0 / 0.06);
+  --panel-shadow-lg: 0 4px 12px -1px rgb(0 0 0 / 0.08), 0 2px 6px -2px rgb(0 0 0 / 0.05);
+
+  /* Accent: Soft gold (confidence, trust, warmth) */
+  --gold-50: #fffbeb;
+  --gold-100: #fef3c7;
+  --gold-200: #fde68a;
+  --gold-300: #fcd34d;
+  --gold-400: #fbbf24;
+  --gold-500: #f59e0b;
+  --gold-600: #d97706;
+
+  /* Accent: Electric green (positive, go, win) */
+  --green-50: #ecfdf5;
+  --green-100: #d1fae5;
+  --green-200: #a7f3d0;
+  --green-300: #6ee7b7;
+  --green-400: #34d399;
+  --green-500: #10b981;
+  --green-600: #059669;
+
+  /* Semantic: Red (loss, warning) */
+  --red-50: #fef2f2;
+  --red-100: #fee2e2;
+  --red-400: #f87171;
+  --red-500: #ef4444;
+  --red-600: #dc2626;
+
+  /* Semantic: Blue (info, neutral) */
+  --blue-50: #eff6ff;
+  --blue-100: #dbeafe;
+  --blue-400: #60a5fa;
+  --blue-500: #3b82f6;
+
+  /* Dark mode background & foreground */
+  --background: var(--slate-950);
+  --foreground: var(--slate-100);
+  --muted: var(--slate-400);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+
+  /* Panel colors */
+  --color-panel: var(--panel-bg);
+  --color-panel-hover: var(--panel-bg-hover);
+  --color-panel-border: var(--panel-border);
+
+  /* Accent colors */
+  --color-gold-50: var(--gold-50);
+  --color-gold-100: var(--gold-100);
+  --color-gold-200: var(--gold-200);
+  --color-gold-300: var(--gold-300);
+  --color-gold-400: var(--gold-400);
+  --color-gold-500: var(--gold-500);
+  --color-gold-600: var(--gold-600);
+
+  --color-green-50: var(--green-50);
+  --color-green-100: var(--green-100);
+  --color-green-200: var(--green-200);
+  --color-green-300: var(--green-300);
+  --color-green-400: var(--green-400);
+  --color-green-500: var(--green-500);
+  --color-green-600: var(--green-600);
+
+  --color-red-50: var(--red-50);
+  --color-red-100: var(--red-100);
+  --color-red-400: var(--red-400);
+  --color-red-500: var(--red-500);
+  --color-red-600: var(--red-600);
+
+  --color-blue-50: var(--blue-50);
+  --color-blue-100: var(--blue-100);
+  --color-blue-400: var(--blue-400);
+  --color-blue-500: var(--blue-500);
+
+  --color-slate-50: var(--slate-50);
+  --color-slate-100: var(--slate-100);
+  --color-slate-200: var(--slate-200);
+  --color-slate-300: var(--slate-300);
+  --color-slate-400: var(--slate-400);
+  --color-slate-500: var(--slate-500);
+  --color-slate-600: var(--slate-600);
+  --color-slate-700: var(--slate-700);
+  --color-slate-800: var(--slate-800);
+  --color-slate-900: var(--slate-900);
+  --color-slate-950: var(--slate-950);
+
+  /* Font families */
+  --font-heading: var(--font-plus-jakarta-sans);
+  --font-body: var(--font-inter);
+}
+
+/* ---------- Fluid Typography ---------- */
+html {
+  font-size: 16px;
+}
+
+@media (min-width: 640px) {
+  html {
+    font-size: 16.5px;
+  }
+}
+
+@media (min-width: 1024px) {
+  html {
+    font-size: 17px;
+  }
+}
+
+@media (min-width: 1280px) {
+  html {
+    font-size: 17.5px;
+  }
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-body), system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Heading font override */
+h1, h2, h3, h4, h5, h6,
+.font-heading {
+  font-family: var(--font-heading), system-ui, sans-serif;
+}
+
+/* ---------- Skeleton / Shimmer Animation ---------- */
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--slate-800) 25%,
+    var(--slate-700) 50%,
+    var(--slate-800) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.8s ease-in-out infinite;
+  border-radius: 0.5rem;
+}
+
+/* ---------- Smooth Transitions ---------- */
+.transition-smooth {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ---------- Scrollbar Styling ---------- */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: var(--slate-900);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--slate-600);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--slate-500);
+}
+
+/* ---------- Focus visible ring ---------- */
+*:focus-visible {
+  outline: 2px solid var(--gold-400);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
