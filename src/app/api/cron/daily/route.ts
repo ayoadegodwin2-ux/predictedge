@@ -24,6 +24,13 @@ export async function GET(request: Request) {
 
     // 1. Run weekday prediction pipeline
     const pipelineResult = await runWeekdayPredictionPipeline();
+    if (!pipelineResult.success || !pipelineResult.selectedPick) {
+      return NextResponse.json({
+        success: false,
+        timestamp: new Date().toISOString(),
+        message: pipelineResult.message || "No eligible live fixtures met criteria today.",
+      });
+    }
     const pick = pipelineResult.selectedPick;
 
     // 2. Push Telegram Alert

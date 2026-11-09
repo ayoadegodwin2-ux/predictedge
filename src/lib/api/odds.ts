@@ -209,11 +209,11 @@ export async function fetchFixtureOdds(
     }
   }
 
-  // Fallback to calibrated odds
+  // No live odds returned
   return {
     fixtureId,
     updateTime: new Date().toISOString(),
-    markets: generateRealisticOdds(fixtureId, isWeekend),
+    markets: [],
   };
 }
 

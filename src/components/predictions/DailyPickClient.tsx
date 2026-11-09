@@ -23,7 +23,7 @@ import {
 import { cn } from "@/lib/utils";
 
 interface DailyPickClientProps {
-  initialPick: Prediction;
+  initialPick: Prediction | null;
 }
 
 export function DailyPickClient({ initialPick }: DailyPickClientProps) {
@@ -39,7 +39,7 @@ export function DailyPickClient({ initialPick }: DailyPickClientProps) {
     }>
   >([]);
   const [historicalPicks, setHistoricalPicks] = useState<HistoricalPredictionItem[]>([]);
-  const [dailyPick, setDailyPick] = useState<Prediction>(initialPick);
+  const [dailyPick, setDailyPick] = useState<Prediction | null>(initialPick);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -87,7 +87,8 @@ export function DailyPickClient({ initialPick }: DailyPickClientProps) {
 
   const currentDisplayPick = isViewingToday
     ? dailyPick
-    : {
+    : activeHistorical
+    ? {
         id: activeHistorical.id,
         homeTeam: activeHistorical.homeTeam,
         awayTeam: activeHistorical.awayTeam,
@@ -99,7 +100,8 @@ export function DailyPickClient({ initialPick }: DailyPickClientProps) {
         odds: activeHistorical.odds,
         confidence: activeHistorical.confidenceScore,
         isWeekendPick: activeHistorical.isWeekendPick,
-      };
+      }
+    : null;
 
   return (
     <div className="min-h-[calc(100vh-8rem)] pb-16">
@@ -276,39 +278,45 @@ export function DailyPickClient({ initialPick }: DailyPickClientProps) {
         )}
 
         {viewMode === "live" && (
-          <>
-            <DailyPickHero prediction={currentDisplayPick} />
+          currentDisplayPick ? (
+            <>
+              <DailyPickHero prediction={currentDisplayPick} />
 
-            {/* Telegram Community Callout */}
-            <div className="mt-8 mx-auto max-w-4xl rounded-2xl border border-sky-500/30 bg-gradient-to-r from-sky-950/40 via-slate-900 to-slate-900 p-5 sm:p-6 backdrop-blur-md shadow-xl shadow-sky-500/5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div>
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-sky-500/20 text-sky-400">
-                    <Send className="h-3.5 w-3.5" />
-                  </span>
-                  <span className="text-xs font-bold uppercase tracking-wider text-sky-400">
-                    Live Broadcast Community
-                  </span>
+              {/* Telegram Community Callout */}
+              <div className="mt-8 mx-auto max-w-4xl rounded-2xl border border-sky-500/30 bg-gradient-to-r from-sky-950/40 via-slate-900 to-slate-900 p-5 sm:p-6 backdrop-blur-md shadow-xl shadow-sky-500/5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-sky-500/20 text-sky-400">
+                      <Send className="h-3.5 w-3.5" />
+                    </span>
+                    <span className="text-xs font-bold uppercase tracking-wider text-sky-400">
+                      Live Broadcast Community
+                    </span>
+                  </div>
+                  <h3 className="font-heading text-lg font-bold text-white">
+                    Join our Telegram Group
+                  </h3>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    Get real-time 8:00 AM algorithm alerts, odds drops, and weekend slips delivered directly to your device.
+                  </p>
                 </div>
-                <h3 className="font-heading text-lg font-bold text-white">
-                  Join our Telegram Group
-                </h3>
-                <p className="text-xs text-slate-400 mt-0.5">
-                  Get real-time 8:00 AM algorithm alerts, odds drops, and weekend slips delivered directly to your device.
-                </p>
-              </div>
 
-              <a
-                href={process.env.NEXT_PUBLIC_TELEGRAM_GROUP_LINK || "https://t.me/predictedge"}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 px-6 py-3 font-heading text-xs font-extrabold text-white shadow-lg shadow-sky-500/25 transition-smooth cursor-pointer shrink-0"
-              >
-                <Send className="h-4 w-4" />
-                <span>Join our Telegram Group</span>
-              </a>
+                <a
+                  href={process.env.NEXT_PUBLIC_TELEGRAM_GROUP_LINK || "https://t.me/predictedge"}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 px-6 py-3 font-heading text-xs font-extrabold text-white shadow-lg shadow-sky-500/25 transition-smooth cursor-pointer shrink-0"
+                >
+                  <Send className="h-4 w-4" />
+                  <span>Join our Telegram Group</span>
+                </a>
+              </div>
+            </>
+          ) : (
+            <div className="rounded-3xl border border-slate-800 bg-slate-900/30 p-8">
+              <EmptyState variant="daily" />
             </div>
-          </>
+          )
         )}
 
         {viewMode === "skeleton" && (

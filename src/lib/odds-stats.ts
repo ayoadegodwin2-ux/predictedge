@@ -282,16 +282,8 @@ export async function fetchPreMatchOdds(fixtureId: number): Promise<NormalizedOd
     }
   }
 
-  // Fallback calibrated odds for testing
-  return [
-    { market: "Over 1.5 Goals (FT)", odds: 1.45, bookmaker: "Bet365", rawValue: "Over 1.5" },
-    { market: "Home Win (1X2 - Home)", odds: 1.42, bookmaker: "Bet365", rawValue: "Home" },
-    { market: "Home Double Chance (1X)", odds: 1.28, bookmaker: "Bet365", rawValue: "1X" },
-    { market: "GG / Both Teams to Score (BTTS - Yes)", odds: 1.65, bookmaker: "Bet365", rawValue: "Yes" },
-    { market: "Over 2.5 Goals (FT)", odds: 1.60, bookmaker: "Bet365", rawValue: "Over 2.5" },
-    { market: "Under 3.5 Goals (FT)", odds: 1.34, bookmaker: "Bet365", rawValue: "Under 3.5" },
-    { market: "First Half Over 0.5 Goals", odds: 1.38, bookmaker: "Bet365", rawValue: "Over 0.5" },
-  ];
+  // No live odds returned from bookmakers
+  return [];
 }
 
 /**
@@ -367,22 +359,22 @@ export async function fetchHeadToHeadStats(homeId: number, awayId: number): Prom
     };
   }
 
-  // Calibrated fallback for testing
+  // No head to head history available
   return {
-    matchesPlayed: 15,
-    homeWins: 8,
-    draws: 4,
-    awayWins: 3,
-    avgTotalGoals: 2.7,
-    bttsCount: 9,
-    over15Count: 12,
-    over25Count: 8,
-    recentHomeWins: 3,
-    recentAwayWins: 1,
-    recentDraws: 1,
-    homeCleanSheets: 5,
-    awayCleanSheets: 2,
-    last15Scores: ["2-1", "1-0", "2-2", "3-1", "0-1", "1-1", "2-0", "3-0", "1-2", "2-1", "0-0", "2-0", "1-0", "4-1", "1-1"],
+    matchesPlayed: 0,
+    homeWins: 0,
+    draws: 0,
+    awayWins: 0,
+    avgTotalGoals: 0,
+    bttsCount: 0,
+    over15Count: 0,
+    over25Count: 0,
+    recentHomeWins: 0,
+    recentAwayWins: 0,
+    recentDraws: 0,
+    homeCleanSheets: 0,
+    awayCleanSheets: 0,
+    last15Scores: [],
   };
 }
 
@@ -481,24 +473,24 @@ export async function fetchRecentTeamMatches(teamId: number): Promise<{
     };
   }
 
-  // Calibrated fallback
+  // No past matches recorded
   return {
-    formPoints10: 22,
-    formScore10: 73,
-    formString10: "WDWWLDWWWD",
-    last5FormString: "DWWWD",
-    scoredAvg10: 1.9,
-    concededAvg10: 0.9,
-    cleanSheetCount10: 4,
-    cleanSheetPct10: 40,
-    failedToScoreCount10: 1,
-    failedToScorePct10: 10,
-    over15Rate10: 80,
-    over25Rate10: 60,
-    bttsRate10: 50,
-    venueWins: 4,
-    venueMatches: 5,
-    venueWinPct: 80,
+    formPoints10: 0,
+    formScore10: 0,
+    formString10: "",
+    last5FormString: "",
+    scoredAvg10: 0,
+    concededAvg10: 0,
+    cleanSheetCount10: 0,
+    cleanSheetPct10: 0,
+    failedToScoreCount10: 0,
+    failedToScorePct10: 0,
+    over15Rate10: 0,
+    over25Rate10: 0,
+    bttsRate10: 0,
+    venueWins: 0,
+    venueMatches: 0,
+    venueWinPct: 0,
   };
 }
 
@@ -561,25 +553,25 @@ export async function fetchTeamStats(teamId: number, leagueId: number, isHome: b
     };
   }
 
-  // Fallback calibrated statistics
+  // Fallback to computed values from 10-match individual form or baseline
   return {
     teamId,
-    formPoints: isHome ? 24 : 17,
-    formScore: isHome ? 80 : 57,
-    formString: isHome ? "WDWWWWLDWW" : "WLWDLWLDDW",
-    last5FormString: isHome ? "WLDWW" : "WLDDW",
-    goalsScoredAvg: isHome ? 2.1 : 1.3,
-    goalsConcededAvg: isHome ? 0.7 : 1.3,
-    cleanSheetPct: isHome ? 45 : 25,
-    failedToScorePct: isHome ? 10 : 25,
-    over15Rate: isHome ? 85 : 75,
-    over25Rate: isHome ? 65 : 45,
-    bttsRate: isHome ? 50 : 55,
-    venueWinRate: isHome ? 75 : 40,
-    venueGoalsScoredAvg: isHome ? 2.2 : 1.2,
-    venueGoalsConcededAvg: isHome ? 0.6 : 1.4,
-    attackRating: isHome ? 88 : 66,
-    defenseRating: isHome ? 86 : 60,
+    formPoints: form10.formPoints10,
+    formScore: form10.formScore10,
+    formString: form10.formString10,
+    last5FormString: form10.last5FormString,
+    goalsScoredAvg: form10.scoredAvg10,
+    goalsConcededAvg: form10.concededAvg10,
+    cleanSheetPct: form10.cleanSheetPct10,
+    failedToScorePct: form10.failedToScorePct10,
+    over15Rate: form10.over15Rate10,
+    over25Rate: form10.over25Rate10,
+    bttsRate: form10.bttsRate10,
+    venueWinRate: form10.venueWinPct,
+    venueGoalsScoredAvg: form10.scoredAvg10,
+    venueGoalsConcededAvg: form10.concededAvg10,
+    attackRating: Math.min(99, Math.max(30, Math.round(form10.scoredAvg10 * 25 + (100 - form10.failedToScorePct10) * 0.2))),
+    defenseRating: Math.min(99, Math.max(30, Math.round((2.5 - Math.min(2.5, form10.concededAvg10)) * 25 + form10.cleanSheetPct10 * 0.3))),
   };
 }
 

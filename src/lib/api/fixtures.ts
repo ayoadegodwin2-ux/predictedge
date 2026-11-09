@@ -7,7 +7,6 @@
 import { sportsApiFetch } from "./client";
 import { isLeagueAllowed, getLeagueInfo } from "./leagues";
 import type { RawApiFixture, NormalizedFixture } from "./types";
-import { mockDailyPick, mockWeekendPicks } from "../mock-data";
 
 /** Formats a Date object to YYYY-MM-DD */
 function formatDate(date: Date): string {
@@ -104,24 +103,7 @@ export async function fetchDailyFixtures(
     }
   }
 
-  // Graceful fallback when API key is not configured or no approved matches today
-  const fallbackFixtures: NormalizedFixture[] = [
-    {
-      apiFixtureId: mockDailyPick.id,
-      homeTeamId: 541,
-      homeTeam: mockDailyPick.homeTeam,
-      awayTeamId: 529,
-      awayTeam: mockDailyPick.awayTeam,
-      leagueId: 140, // La Liga
-      leagueName: mockDailyPick.league,
-      country: mockDailyPick.country,
-      countryFlag: mockDailyPick.countryFlag,
-      kickoffTime: mockDailyPick.kickoff,
-      status: "NS",
-    },
-  ];
-
-  return { fixtures: fallbackFixtures, source: "fallback" };
+  return { fixtures: [], source: "live_api" };
 }
 
 /**
@@ -147,23 +129,6 @@ export async function fetchWeekendFixtures(
     }
   }
 
-  // Fallback using our 50 verified games
-  const fallbackFixtures: NormalizedFixture[] = mockWeekendPicks.map((p) => {
-    return {
-      apiFixtureId: p.id + 1000,
-      homeTeamId: p.id * 10,
-      homeTeam: p.homeTeam,
-      awayTeamId: p.id * 10 + 1,
-      awayTeam: p.awayTeam,
-      leagueId: 39,
-      leagueName: p.league,
-      country: p.country,
-      countryFlag: p.countryFlag,
-      kickoffTime: p.kickoff,
-      status: "NS",
-    };
-  });
-
-  return { fixtures: fallbackFixtures, source: "fallback" };
+  return { fixtures: [], source: "live_api" };
 }
 

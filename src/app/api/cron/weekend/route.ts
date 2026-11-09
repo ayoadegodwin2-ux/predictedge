@@ -23,6 +23,13 @@ export async function GET(request: Request) {
 
     // 1. Run weekend prediction pipeline (50 deduplicated games)
     const pipelineResult = await runWeekendPredictionPipeline();
+    if (!pipelineResult.success || pipelineResult.picks.length === 0) {
+      return NextResponse.json({
+        success: false,
+        timestamp: new Date().toISOString(),
+        message: pipelineResult.message || "No eligible live weekend fixtures found.",
+      });
+    }
     const picks = pipelineResult.picks;
 
     // Calculate slate summary

@@ -7,7 +7,6 @@
 
 import { apiSportsFetch } from "./api-sports";
 import { isWhitelistedLeague, getCountryFlag } from "./leagues";
-import { mockDailyPick, mockWeekendPicks } from "./mock-data";
 
 export interface NormalizedMatchFixture {
   apiFixtureId: number;
@@ -55,7 +54,7 @@ export function toApiDate(d: Date): string {
  */
 export async function fetchFixturesForDate(
   date: string
-): Promise<{ fixtures: NormalizedMatchFixture[]; totalRaw: number; filteredCount: number; isMock: boolean }> {
+): Promise<{ fixtures: NormalizedMatchFixture[]; totalRaw: number; filteredCount: number; isMock: boolean; error?: string }> {
   const result = await apiSportsFetch<RawApiFixturePayload[]>("fixtures", {
     params: { date },
     revalidateSeconds: 600, // Cache for 10 minutes
@@ -103,29 +102,13 @@ export async function fetchFixturesForDate(
     };
   }
 
-  // Graceful fallback for local preview or unconfigured API key
-  const futureDailyKickoff = new Date(Date.now() + 6 * 3600 * 1000).toISOString();
-  const fallbackList: NormalizedMatchFixture[] = [
-    {
-      apiFixtureId: mockDailyPick.id,
-      homeTeamId: 541,
-      homeTeam: mockDailyPick.homeTeam,
-      awayTeamId: 529,
-      awayTeam: mockDailyPick.awayTeam,
-      leagueId: 140,
-      leagueName: mockDailyPick.league,
-      country: mockDailyPick.country,
-      countryFlag: mockDailyPick.countryFlag,
-      kickoffTime: futureDailyKickoff,
-      status: "NS",
-    },
-  ];
-
+  // Strict live data only: return empty array if no live fixtures available from API-Sports
   return {
-    fixtures: fallbackList,
-    totalRaw: 1,
-    filteredCount: 1,
-    isMock: true,
+    fixtures: [],
+    totalRaw: 0,
+    filteredCount: 0,
+    isMock: false,
+    error: result.error || "No fixtures returned from API-Sports",
   };
 }
 
@@ -135,7 +118,7 @@ export async function fetchFixturesForDate(
 export async function fetchWeekendFixturesPool(
   startDate?: string,
   endDate?: string
-): Promise<{ fixtures: NormalizedMatchFixture[]; isMock: boolean }> {
+): Promise<{ fixtures: NormalizedMatchFixture[]; isMock: boolean; error?: string }> {
   // If dates are provided, fetch them; otherwise default to upcoming weekend
   const now = new Date();
   const day = now.getUTCDay();
@@ -155,25 +138,10 @@ export async function fetchWeekendFixturesPool(
 
   const combined = [...satResults.fixtures, ...sunResults.fixtures];
 
-  if (!satResults.isMock && !sunResults.isMock && combined.length >= 10) {
-    return { fixtures: combined, isMock: false };
-  }
-
-  // Fallback to our 50 verified games with dynamically guaranteed future kickoff times
-  const fallbackList: NormalizedMatchFixture[] = mockWeekendPicks.map((p, idx) => ({
-    apiFixtureId: p.id + 5000,
-    homeTeamId: p.id * 10,
-    homeTeam: p.homeTeam,
-    awayTeamId: p.id * 10 + 1,
-    awayTeam: p.awayTeam,
-    leagueId: 39,
-    leagueName: p.league,
-    country: p.country,
-    countryFlag: p.countryFlag,
-    kickoffTime: new Date(Date.now() + 24 * 3600 * 1000 + idx * 1800 * 1000).toISOString(),
-    status: "NS",
-  }));
-
-  return { fixtures: fallbackList, isMock: true };
+  return {
+    fixtures: combined,
+    isMock: false,
+    error: combined.length === 0 ? (satResults.error || sunResults.error || "No weekend fixtures found") : undefined,
+  };
 }
 

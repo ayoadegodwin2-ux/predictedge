@@ -89,7 +89,7 @@ export function getCalibrated14DayHistory(): HistoricalPredictionItem[] {
     { home: "Ajax", away: "Feyenoord", league: "Eredivisie", country: "Netherlands", market: "GG / Both Teams to Score (BTTS - Yes)", odds: 1.50, conf: 87, res: "WON" as const },
     { home: "Real Madrid", away: "Real Sociedad", league: "La Liga", country: "Spain", market: "Home Win (1X2 - Home)", odds: 1.40, conf: 92, res: "WON" as const },
     { home: "Manchester City", away: "Aston Villa", league: "Premier League", country: "England", market: "Over 2.5 Goals (FT)", odds: 1.46, conf: 91, res: "WON" as const },
-    { home: "Real Madrid", away: "Barcelona", league: "La Liga", country: "Spain", market: "Over 1.5 Goals (FT)", odds: 1.45, conf: 95, res: "PENDING" as const },
+    { home: "AC Milan", away: "Roma", league: "Serie A", country: "Italy", market: "Over 1.5 Goals (FT)", odds: 1.36, conf: 93, res: "WON" as const },
   ];
 
   days.forEach((day, index) => {

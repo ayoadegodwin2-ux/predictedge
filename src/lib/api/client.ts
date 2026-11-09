@@ -54,7 +54,7 @@ export async function sportsApiFetch<T>(
       method: "GET",
       headers,
       signal: controller.signal,
-      next: { revalidate: options.revalidateSeconds ?? 300 }, // 5 min cache default
+      cache: "no-store",
     });
 
     clearTimeout(timeoutId);

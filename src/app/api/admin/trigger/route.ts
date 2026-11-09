@@ -28,6 +28,13 @@ export async function POST(request: Request) {
 
     if (job === "daily") {
       const result = await runWeekdayPredictionPipeline();
+      if (!result.success || !result.selectedPick) {
+        return NextResponse.json({
+          success: false,
+          job: "daily",
+          error: result.message || "No eligible live fixtures found meeting mathematical criteria and odds (1.30–1.50) today.",
+        }, { status: 404 });
+      }
       const pick = result.selectedPick;
 
       let telegramAlert;
@@ -69,6 +76,13 @@ export async function POST(request: Request) {
 
     if (job === "weekend") {
       const result = await runWeekendPredictionPipeline();
+      if (!result.success || result.picks.length === 0) {
+        return NextResponse.json({
+          success: false,
+          job: "weekend",
+          error: result.message || "No eligible live weekend fixtures found meeting mathematical criteria.",
+        }, { status: 404 });
+      }
       const picks = result.picks;
       const totalOdds = picks.reduce((s, p) => s + p.odd.odds, 0);
       const avgOdds = picks.length > 0 ? (totalOdds / picks.length).toFixed(2) : "1.45";

@@ -4,7 +4,6 @@ import { useState, useEffect } from "react";
 import { WeekendTable } from "@/components/predictions/WeekendTable";
 import { WeekendTableSkeleton } from "@/components/ui/LoadingSkeleton";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { mockWeekendPicks } from "@/lib/mock-data";
 import { generateCalibratedPreviousWeekendPicks } from "@/lib/engine/settlement-shared";
 import type { Prediction } from "@/lib/types";
 import {
@@ -21,6 +20,7 @@ export default function WeekendPage() {
   const [activeTab, setActiveTab] = useState<"upcoming" | "previous">("upcoming");
   const [viewMode, setViewMode] = useState<"live" | "skeleton" | "empty">("live");
 
+  const [upcomingPicks, setUpcomingPicks] = useState<Prediction[]>([]);
   const [previousPicks, setPreviousPicks] = useState<Prediction[]>([]);
   const [previousStats, setPreviousStats] = useState({
     total: 50,
@@ -35,8 +35,20 @@ export default function WeekendPage() {
       const fallbackPicks = generateCalibratedPreviousWeekendPicks();
       setPreviousPicks(fallbackPicks);
 
-      // Attempt live fetch from DB
-      fetch("/api/predictions/previous-weekend")
+      // Fetch live upcoming weekend predictions from database
+      fetch("/api/predictions/weekend", { cache: "no-store" })
+        .then((res) => res.json())
+        .then((json) => {
+          if (json.success && Array.isArray(json.data)) {
+            setUpcomingPicks(json.data);
+          }
+        })
+        .catch((err) => {
+          console.warn("Client fetch /api/predictions/weekend error:", err);
+        });
+
+      // Attempt live fetch from DB for previous weekend
+      fetch("/api/predictions/previous-weekend", { cache: "no-store" })
         .then((res) => res.json())
         .then((json) => {
           if (json.success && json.data?.picks?.length > 0) {
@@ -230,10 +242,16 @@ export default function WeekendPage() {
         )}
 
         {viewMode === "live" && (
-          <WeekendTable
-            predictions={activeTab === "upcoming" ? mockWeekendPicks : previousPicks}
-            isPreviousWeekend={activeTab === "previous"}
-          />
+          (activeTab === "upcoming" ? upcomingPicks : previousPicks).length > 0 ? (
+            <WeekendTable
+              predictions={activeTab === "upcoming" ? upcomingPicks : previousPicks}
+              isPreviousWeekend={activeTab === "previous"}
+            />
+          ) : (
+            <div className="rounded-3xl border border-slate-800 bg-slate-900/30 p-8">
+              <EmptyState variant="weekend" />
+            </div>
+          )
         )}
 
         {viewMode === "skeleton" && (

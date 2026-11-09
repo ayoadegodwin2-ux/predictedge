@@ -70,7 +70,7 @@ export async function apiSportsFetch<T>(
         "Accept": "application/json",
       },
       signal: controller.signal,
-      next: { revalidate: options.revalidateSeconds ?? 300 }, // 5-minute cache default
+      cache: "no-store", // Strictly bypass external cache so fresh live data is always fetched
     });
 
     clearTimeout(timeout);

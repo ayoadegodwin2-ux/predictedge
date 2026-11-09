@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import { mockWeekendPicks } from "@/lib/mock-data";
 import { generateCalibratedPreviousWeekendPicks } from "@/lib/engine/settlement-shared";
 import type { Prediction } from "@/lib/types";
 import { Top15PicksGrid } from "@/components/predictions/Top15PicksGrid";
@@ -27,28 +26,23 @@ export default function Top15Page() {
   const [previousPicks, setPreviousPicks] = useState<Prediction[]>([]);
 
   useEffect(() => {
-    // Populate safely after mount to avoid prerender blocking
+    // Populate live Top 15 picks from database
     const timer = setTimeout(() => {
-      const fallbackUpcoming = [...mockWeekendPicks]
-        .sort((a, b) => b.confidence - a.confidence)
-        .slice(0, 15);
-      setUpcomingPicks(fallbackUpcoming);
-
       const fallbackPrevious = generateCalibratedPreviousWeekendPicks()
         .sort((a, b) => b.confidence - a.confidence)
         .slice(0, 15);
       setPreviousPicks(fallbackPrevious);
 
       // Independent database query for live Top 15
-      fetch("/api/predictions/top-15")
+      fetch("/api/predictions/top-15", { cache: "no-store" })
         .then((res) => res.json())
         .then((json) => {
-          if (json.success && Array.isArray(json.data) && json.data.length > 0) {
+          if (json.success && Array.isArray(json.data)) {
             setUpcomingPicks(json.data);
           }
         })
-        .catch(() => {
-          // Curated fallback already active
+        .catch((err) => {
+          console.warn("Client fetch /api/predictions/top-15 error:", err);
         });
     }, 0);
 
@@ -263,10 +257,16 @@ export default function Top15Page() {
       {/* Main Content: 15 Visual Cards */}
       <section className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 pt-8">
         {viewMode === "live" && (
-          <Top15PicksGrid
-            picks={currentPicks}
-            isPreviousWeekend={activeTab === "previous"}
-          />
+          currentPicks.length > 0 ? (
+            <Top15PicksGrid
+              picks={currentPicks}
+              isPreviousWeekend={activeTab === "previous"}
+            />
+          ) : (
+            <div className="rounded-3xl border border-slate-800 bg-slate-900/30 p-8">
+              <EmptyState variant="weekend" />
+            </div>
+          )
         )}
 
         {viewMode === "skeleton" && (

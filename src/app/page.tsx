@@ -5,7 +5,6 @@ import { db } from "@/db";
 import { predictions, matches } from "@/db/schema";
 import { eq, desc } from "drizzle-orm";
 import { getCountryFlag } from "@/lib/leagues";
-import { mockDailyPick } from "@/lib/mock-data";
 import { DailyPickClient } from "@/components/predictions/DailyPickClient";
 import type { Prediction } from "@/lib/types";
 
@@ -14,7 +13,7 @@ import type { Prediction } from "@/lib/types";
  * Strictly avoids fragile date-string matching across UTC/WAT timezones.
  * Simply fetches the latest single daily pick by sorting by created_at descending with limit 1.
  */
-async function getLatestDailyPick(): Promise<Prediction> {
+async function getLatestDailyPick(): Promise<Prediction | null> {
   try {
     const rows = await db
       .select({
@@ -56,10 +55,10 @@ async function getLatestDailyPick(): Promise<Prediction> {
       };
     }
   } catch (err) {
-    console.warn("Homepage server query fallback to mockDailyPick:", err);
+    console.warn("Homepage server query error:", err);
   }
 
-  return mockDailyPick;
+  return null;
 }
 
 export default async function DailyPickPage() {

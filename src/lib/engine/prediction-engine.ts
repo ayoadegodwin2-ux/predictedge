@@ -21,13 +21,28 @@ import { evaluateMatchupNewsAndContext } from "./news-context";
 import { db } from "@/db";
 import { matches, predictions } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
-import { mockDailyPick, mockWeekendPicks } from "../mock-data";
 
 export interface CandidatePrediction {
   fixture: NormalizedMatchFixture;
   odd: NormalizedOdd;
   algorithm: AlgorithmScoreResult;
   isWeekendPick: boolean;
+}
+
+export interface WeekdayPredictionResult {
+  success: boolean;
+  selectedPick: CandidatePrediction | null;
+  totalEvaluated: number;
+  dbSaved: boolean;
+  message?: string;
+}
+
+export interface WeekendPredictionResult {
+  success: boolean;
+  picks: CandidatePrediction[];
+  totalEvaluated: number;
+  dbSavedCount: number;
+  message?: string;
 }
 
 /**
@@ -180,11 +195,7 @@ export async function persistPredictionsToDatabase(
  * Step 21: Weekday Logic
  * Sorts Mon-Fri predictions and returns/saves ONLY the single #1 highest-confidence pick.
  */
-export async function runWeekdayPredictionPipeline(targetDate?: string): Promise<{
-  selectedPick: CandidatePrediction;
-  totalEvaluated: number;
-  dbSaved: boolean;
-}> {
+export async function runWeekdayPredictionPipeline(targetDate?: string): Promise<WeekdayPredictionResult> {
   const dateStr = targetDate || new Date().toISOString().split("T")[0];
   const fixturesResult = await fetchFixturesForDate(dateStr);
 
@@ -207,51 +218,14 @@ export async function runWeekdayPredictionPipeline(targetDate?: string): Promise
     if (candidatePool.length >= 20) break;
   }
 
-  // If no candidates matched the live filter, fall back to calibrated high-confidence pick
+  // Strict live data only: if no eligible games qualify, return clean error/unqualified message
   if (candidatePool.length === 0) {
-    const fallbackKickoff = new Date(Date.now() + 6 * 3600 * 1000).toISOString();
-    const fallbackPick: CandidatePrediction = {
-      fixture: {
-        apiFixtureId: mockDailyPick.id,
-        homeTeamId: 541,
-        homeTeam: mockDailyPick.homeTeam,
-        awayTeamId: 529,
-        awayTeam: mockDailyPick.awayTeam,
-        leagueId: 140,
-        leagueName: mockDailyPick.league,
-        country: mockDailyPick.country,
-        countryFlag: mockDailyPick.countryFlag,
-        kickoffTime: fallbackKickoff,
-        status: "NS",
-      },
-      odd: {
-        market: mockDailyPick.market as ApprovedMarketName,
-        odds: mockDailyPick.odds,
-        bookmaker: "Bet365",
-        rawValue: "Over 1.5",
-      },
-      algorithm: {
-        confidenceScore: mockDailyPick.confidence,
-        formScore: 96,
-        h2hScore: 92,
-        goalStatsScore: 94,
-        tacticalScore: 95,
-        reasoning: "Strict mathematical model: Full Time goal threshold passed with 95% certainty.",
-        tacticalNotes: ["Tactical metrics indicate high scoring expectation."],
-      },
-      isWeekendPick: false,
-    };
-
-    try {
-      await persistPredictionsToDatabase([fallbackPick], false, dateStr);
-    } catch {
-      // Offline / DB fallback handled gracefully
-    }
-
     return {
-      selectedPick: fallbackPick,
-      totalEvaluated: 1,
-      dbSaved: true,
+      success: false,
+      selectedPick: null,
+      totalEvaluated: 0,
+      dbSaved: false,
+      message: fixturesResult.error || "No eligible live fixtures met the strict mathematical criteria and 1.30–1.50 odds window today.",
     };
   }
 
@@ -275,25 +249,23 @@ export async function runWeekdayPredictionPipeline(targetDate?: string): Promise
   }
 
   return {
+    success: true,
     selectedPick: topPick,
     totalEvaluated: candidatePool.length,
     dbSaved,
+    message: "High-confidence daily pick selected successfully from live data.",
   };
 }
 
 /**
  * Step 22: Weekend Logic
  * Sorts Sat-Sun predictions, removes duplicate markets for the same match,
- * and saves EXACTLY 50 independent single games.
+ * and saves up to 50 independent single games strictly from live data.
  */
 export async function runWeekendPredictionPipeline(
   saturdayDate?: string,
   sundayDate?: string
-): Promise<{
-  picks: CandidatePrediction[];
-  totalEvaluated: number;
-  dbSavedCount: number;
-}> {
+): Promise<WeekendPredictionResult> {
   const weekendResult = await fetchWeekendFixturesPool(saturdayDate, sundayDate);
   const candidatePool: CandidatePrediction[] = [];
 
@@ -331,54 +303,19 @@ export async function runWeekendPredictionPipeline(
   // Sort strictly by Confidence Score descending
   uniqueMatchesList.sort((a, b) => b.algorithm.confidenceScore - a.algorithm.confidenceScore);
 
-  // Take EXACTLY 50 independent single games
-  let finalFifty: CandidatePrediction[] = uniqueMatchesList.slice(0, 50);
+  // Take up to 50 independent single games
+  const finalFifty: CandidatePrediction[] = uniqueMatchesList.slice(0, 50);
 
-  // If pool was under 50, supplement with our 50 verified games
-  if (finalFifty.length < 50) {
-    const existingIds = new Set(finalFifty.map((f) => f.fixture.apiFixtureId));
-
-    for (let idx = 0; idx < mockWeekendPicks.length; idx++) {
-      if (finalFifty.length >= 50) break;
-      const mockPick = mockWeekendPicks[idx];
-      if (!existingIds.has(mockPick.id + 5000)) {
-        finalFifty.push({
-          fixture: {
-            apiFixtureId: mockPick.id + 5000,
-            homeTeamId: mockPick.id * 10,
-            homeTeam: mockPick.homeTeam,
-            awayTeamId: mockPick.id * 10 + 1,
-            awayTeam: mockPick.awayTeam,
-            leagueId: 39,
-            leagueName: mockPick.league,
-            country: mockPick.country,
-            countryFlag: mockPick.countryFlag,
-            kickoffTime: new Date(Date.now() + 24 * 3600 * 1000 + idx * 1800 * 1000).toISOString(),
-            status: "NS",
-          },
-          odd: {
-            market: mockPick.market as ApprovedMarketName,
-            odds: mockPick.odds,
-            bookmaker: "Bet365",
-            rawValue: mockPick.market,
-          },
-          algorithm: {
-            confidenceScore: mockPick.confidence,
-            formScore: mockPick.confidence + 2,
-            h2hScore: mockPick.confidence - 2,
-            goalStatsScore: mockPick.confidence,
-            tacticalScore: mockPick.confidence,
-            reasoning: "Verified weekend selection within 1.20-1.80 target odds.",
-            tacticalNotes: ["Verified weekend selection within 1.20-1.80 target odds."],
-          },
-          isWeekendPick: true,
-        });
-      }
-    }
+  // Strict live data only: if 0 matches qualify, return clean error message
+  if (finalFifty.length === 0) {
+    return {
+      success: false,
+      picks: [],
+      totalEvaluated: 0,
+      dbSavedCount: 0,
+      message: weekendResult.error || "No eligible live weekend fixtures found matching strict criteria and odds (1.20–1.80).",
+    };
   }
-
-  // Ensure exactly 50 games
-  finalFifty = finalFifty.slice(0, 50);
 
   let dbSavedCount = 0;
   try {
@@ -390,8 +327,10 @@ export async function runWeekendPredictionPipeline(
   }
 
   return {
+    success: true,
     picks: finalFifty,
     totalEvaluated: candidatePool.length,
     dbSavedCount,
+    message: `Selected ${finalFifty.length} high-confidence weekend fixtures strictly from live data.`,
   };
 }

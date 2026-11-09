@@ -110,15 +110,14 @@ export async function fetchHeadToHead(
     };
   }
 
-  // High-fidelity fallback based on deterministic team IDs
-  const combined = (homeTeamId + awayTeamId) % 10;
+  // No H2H history
   return {
-    totalMatches: 8,
-    homeWins: 4 + (combined % 3),
-    draws: 2,
-    awayWins: 2,
-    avgTotalGoals: 2.8,
-    recentResults: ["W", "W", "D", "W", "L"],
+    totalMatches: 0,
+    homeWins: 0,
+    draws: 0,
+    awayWins: 0,
+    avgTotalGoals: 0,
+    recentResults: [],
   };
 }
 
@@ -159,16 +158,16 @@ export async function fetchTeamStats(
     };
   }
 
-  // Realistic calibrated fallback
+  // Baseline empty statistics
   return {
     teamId,
-    formScore: isHome ? 88 : 78,
-    goalsScoredAvg: isHome ? 2.1 : 1.5,
-    goalsConcededAvg: isHome ? 0.8 : 1.1,
-    cleanSheetPct: isHome ? 45 : 30,
-    over15GoalsPct: isHome ? 85 : 75,
-    over25GoalsPct: isHome ? 65 : 55,
-    bttsPct: 58,
+    formScore: 0,
+    goalsScoredAvg: 0,
+    goalsConcededAvg: 0,
+    cleanSheetPct: 0,
+    over15GoalsPct: 0,
+    over25GoalsPct: 0,
+    bttsPct: 0,
   };
 }
 

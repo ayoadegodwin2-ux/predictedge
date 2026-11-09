@@ -7,7 +7,6 @@ import { db } from "@/db";
 import { predictions, matches } from "@/db/schema";
 import { eq, desc } from "drizzle-orm";
 import { getCountryFlag } from "@/lib/leagues";
-import { mockDailyPick } from "@/lib/mock-data";
 
 /**
  * GET /api/predictions/daily
@@ -72,9 +71,9 @@ export async function GET() {
       );
     }
 
-    // Fallback if no records found yet
+    // Return null if no prediction records found yet in database
     return NextResponse.json(
-      { success: true, data: mockDailyPick },
+      { success: true, data: null },
       { headers: { "Cache-Control": "no-store" } }
     );
   } catch (err: unknown) {

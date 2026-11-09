@@ -3,7 +3,6 @@ import { db } from "@/db";
 import { predictions, matches } from "@/db/schema";
 import { eq, desc } from "drizzle-orm";
 import { getCountryFlag } from "@/lib/leagues";
-import { mockWeekendPicks } from "@/lib/mock-data";
 
 export async function GET() {
   try {
@@ -31,7 +30,7 @@ export async function GET() {
       .orderBy(desc(predictions.confidenceScore))
       .limit(15);
 
-    if (rows && rows.length >= 10) {
+    if (rows && rows.length > 0) {
       const top15 = rows.map((r) => ({
         id: r.id,
         homeTeam: r.homeTeam,
@@ -56,16 +55,11 @@ export async function GET() {
       });
     }
 
-    // High-confidence fallback sorted descending
-    const fallbackTop15 = [...mockWeekendPicks]
-      .sort((a, b) => b.confidence - a.confidence)
-      .slice(0, 15);
-
     return NextResponse.json({
       success: true,
-      source: "curated_fallback",
-      count: fallbackTop15.length,
-      data: fallbackTop15,
+      source: "database",
+      count: 0,
+      data: [],
     });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Failed to fetch top 15 picks";
