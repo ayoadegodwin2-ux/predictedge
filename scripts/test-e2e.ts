@@ -67,18 +67,69 @@ async function runEndToEndTests() {
   assert("1.75 odds is approved on Weekends (1.20 - 1.80)", isWithinWeekendWindow(1.75));
   assert("1.85 odds is rejected on Weekends (> 1.80)", !isWithinWeekendWindow(1.85));
 
-  // --- TEST 4: Mathematical Scoring Algorithm (Step 20) ---
-  console.log("\n4. MATHEMATICAL CONFIDENCE ALGORITHM (Step 20)");
-  const mockHomeStats = { teamId: 1, formPoints: 13, formScore: 87, formString: "WWDWW", goalsScoredAvg: 2.3, goalsConcededAvg: 0.7, cleanSheetPct: 50 };
-  const mockAwayStats = { teamId: 2, formPoints: 7, formScore: 47, formString: "WLLDL", goalsScoredAvg: 1.1, goalsConcededAvg: 1.6, cleanSheetPct: 20 };
-  const mockH2H = { matchesPlayed: 8, homeWins: 5, draws: 2, awayWins: 1, avgTotalGoals: 3.1, bttsCount: 5 };
+  // --- TEST 4: Mathematical Scoring Algorithm (Step 20 - Deep Analysis Upgrade) ---
+  console.log("\n4. MATHEMATICAL CONFIDENCE ALGORITHM (Deep Analysis Upgrade)");
+  const mockHomeStats = {
+    teamId: 1,
+    formPoints: 24,
+    formScore: 80,
+    formString: "WDWWWWLDWW",
+    last5FormString: "WLDWW",
+    goalsScoredAvg: 2.3,
+    goalsConcededAvg: 0.7,
+    cleanSheetPct: 50,
+    failedToScorePct: 10,
+    over15Rate: 85,
+    over25Rate: 65,
+    bttsRate: 50,
+    venueWinRate: 80,
+    venueGoalsScoredAvg: 2.4,
+    venueGoalsConcededAvg: 0.6,
+    attackRating: 88,
+    defenseRating: 85,
+  };
+  const mockAwayStats = {
+    teamId: 2,
+    formPoints: 14,
+    formScore: 47,
+    formString: "WLLDLWLLDD",
+    last5FormString: "WLLDD",
+    goalsScoredAvg: 1.1,
+    goalsConcededAvg: 1.6,
+    cleanSheetPct: 20,
+    failedToScorePct: 30,
+    over15Rate: 70,
+    over25Rate: 40,
+    bttsRate: 50,
+    venueWinRate: 35,
+    venueGoalsScoredAvg: 1.0,
+    venueGoalsConcededAvg: 1.7,
+    attackRating: 62,
+    defenseRating: 58,
+  };
+  const mockH2H = {
+    matchesPlayed: 15,
+    homeWins: 9,
+    draws: 4,
+    awayWins: 2,
+    avgTotalGoals: 2.9,
+    bttsCount: 8,
+    over15Count: 13,
+    over25Count: 9,
+    recentHomeWins: 4,
+    recentAwayWins: 0,
+    recentDraws: 1,
+    homeCleanSheets: 6,
+    awayCleanSheets: 2,
+    last15Scores: ["2-1", "3-0", "1-1", "2-0", "4-1", "1-0", "2-2", "0-1", "3-1", "2-0", "1-0", "0-0", "3-2", "1-2", "2-0"],
+  };
 
   const homeWinScore = calculateMarketConfidence("Home Win (1X2 - Home)", 1.45, mockHomeStats, mockAwayStats, mockH2H);
   assert("Confidence score produces integer 0-100", homeWinScore.confidenceScore >= 0 && homeWinScore.confidenceScore <= 100);
   assert("Strong home favorite scores high confidence (>= 85%)", homeWinScore.confidenceScore >= 85);
-  assert("Recent Form weight (40%) properly computed", homeWinScore.formScore > 0);
-  assert("Head-to-Head weight (30%) properly computed", homeWinScore.h2hScore > 0);
-  assert("Goal average weight (30%) properly computed", homeWinScore.goalStatsScore > 0);
+  assert("Recent Form weight (35%) properly computed", homeWinScore.formScore > 0);
+  assert("Head-to-Head weight (30%) properly computed with 15 matches", homeWinScore.h2hScore > 0);
+  assert("Goal average & tactical metrics computed", homeWinScore.goalStatsScore > 0 && homeWinScore.tacticalScore > 0);
 
   // --- TEST 5: Weekday Pipeline Execution (Step 21) ---
   console.log("\n5. WEEKDAY PIPELINE EXECUTION (Step 21)");
