@@ -592,20 +592,20 @@ export default function AdminDashboardPage() {
               </button>
             </div>
 
-            {/* Trigger 2: Weekend 50 */}
+            {/* Trigger 2: Weekend 15 */}
             <div className="rounded-2xl border border-slate-800 bg-slate-950/80 p-5 flex flex-col justify-between">
               <div>
                 <div className="flex items-center justify-between mb-2">
                   <span className="rounded-lg bg-green-400/10 border border-green-400/30 px-2 py-0.5 text-[10px] font-bold uppercase text-green-300">
-                    Weekend 50 (Sat)
+                    Weekend 15 (Sat)
                   </span>
                   <span className="text-[11px] text-slate-500">Scheduled: 8:00 AM</span>
                 </div>
                 <h3 className="font-heading text-base font-bold text-white">
-                  Generate Weekend 50
+                  Generate Weekend 15
                 </h3>
                 <p className="text-xs text-slate-400 mt-1">
-                  Isolates 50 unique games (1.20–1.80 odds), commits to Supabase, and broadcasts Telegram summary.
+                  Isolates 15 unique games (1.20–1.80 odds), commits to Supabase, and broadcasts Telegram summary.
                 </p>
               </div>
 
@@ -620,7 +620,7 @@ export default function AdminDashboardPage() {
                 ) : (
                   <Play className="h-4 w-4" />
                 )}
-                <span>Trigger Weekend 50 Now</span>
+                <span>Trigger Weekend 15 Now</span>
               </button>
             </div>
 

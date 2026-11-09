@@ -258,9 +258,10 @@ export async function runWeekdayPredictionPipeline(targetDate?: string): Promise
 }
 
 /**
- * Step 22: Weekend Logic
+ * Step 22: Weekend Logic (Weekend 15)
  * Sorts Sat-Sun predictions, removes duplicate markets for the same match,
- * and saves up to 50 independent single games strictly from live data.
+ * and saves up to 15 independent single games strictly from live data.
+ * Enforces a hard limit of at most 15 matches evaluated to respect API-Sports 100 req/day quota.
  */
 export async function runWeekendPredictionPipeline(
   saturdayDate?: string,
@@ -270,10 +271,14 @@ export async function runWeekendPredictionPipeline(
   const candidatePool: CandidatePrediction[] = [];
 
   // Strictly filter for future, unplayed matches with status === 'NS'
-  const eligibleFixtures = weekendResult.fixtures.filter((fix) => isStrictFutureGame(fix));
+  // HARD LIMIT: Slice to a maximum of 15 candidate matches before the deep analysis loop
+  // to prevent burning through the 100-request/day free quota.
+  const eligibleFixtures = weekendResult.fixtures
+    .filter((fix) => isStrictFutureGame(fix))
+    .slice(0, 15);
 
   // Process fixtures in concurrent batches for high throughput and rapid Vercel completion
-  const BATCH_SIZE = 8;
+  const BATCH_SIZE = 5;
   for (let i = 0; i < eligibleFixtures.length; i += BATCH_SIZE) {
     const chunk = eligibleFixtures.slice(i, i + BATCH_SIZE);
     const chunkResults = await Promise.all(
@@ -282,8 +287,6 @@ export async function runWeekendPredictionPipeline(
     for (const evaluated of chunkResults) {
       candidatePool.push(...evaluated);
     }
-    // Collect ample high-confidence candidates to form our 50-game slate
-    if (candidatePool.length >= 80) break;
   }
 
   // Deduplication: Pick ONLY the highest confidence market for each unique match!
@@ -303,11 +306,11 @@ export async function runWeekendPredictionPipeline(
   // Sort strictly by Confidence Score descending
   uniqueMatchesList.sort((a, b) => b.algorithm.confidenceScore - a.algorithm.confidenceScore);
 
-  // Take up to 50 independent single games
-  const finalFifty: CandidatePrediction[] = uniqueMatchesList.slice(0, 50);
+  // Take up to 15 independent single games
+  const finalFifteen: CandidatePrediction[] = uniqueMatchesList.slice(0, 15);
 
   // Strict live data only: if 0 matches qualify, return clean error message
-  if (finalFifty.length === 0) {
+  if (finalFifteen.length === 0) {
     return {
       success: false,
       picks: [],
@@ -320,7 +323,7 @@ export async function runWeekendPredictionPipeline(
   let dbSavedCount = 0;
   try {
     const weekendDate = saturdayDate || new Date().toISOString().split("T")[0];
-    const dbResult = await persistPredictionsToDatabase(finalFifty, true, weekendDate);
+    const dbResult = await persistPredictionsToDatabase(finalFifteen, true, weekendDate);
     dbSavedCount = dbResult.savedCount + dbResult.existingCount;
   } catch (err) {
     console.error("Weekend database save error:", err);
@@ -328,9 +331,9 @@ export async function runWeekendPredictionPipeline(
 
   return {
     success: true,
-    picks: finalFifty,
+    picks: finalFifteen,
     totalEvaluated: candidatePool.length,
     dbSavedCount,
-    message: `Selected ${finalFifty.length} high-confidence weekend fixtures strictly from live data.`,
+    message: `Selected ${finalFifteen.length} high-confidence weekend fixtures strictly from live data (capped at 15).`,
   };
 }

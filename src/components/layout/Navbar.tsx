@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils";
 const navLinks = [
   { href: "/", label: "Daily Pick" },
   { href: "/top-15", label: "Top 15 Picks" },
-  { href: "/weekend-50", label: "Weekend 50" },
+  { href: "/weekend-50", label: "Weekend 15" },
   { href: "/history", label: "History & Accuracy" },
 ];
 

@@ -81,14 +81,14 @@ export default function WeekendPage() {
                   <Layers className="h-4 w-4 text-green-400" />
                 </div>
                 <span className="text-xs font-bold uppercase tracking-widest text-green-400">
-                  Weekend 50 Slate
+                  Top 15 Weekend Picks
                 </span>
               </div>
               <h1 className="font-heading text-2xl sm:text-3xl font-extrabold text-white">
-                50 Independent Weekend Single Games
+                Top 15 Weekend Picks
               </h1>
               <p className="mt-1 text-xs sm:text-sm text-slate-400">
-                Sorted by algorithmic certainty, strictly filtered across 13 approved markets and 54 whitelisted nations.
+                15 highest-confidence single games sorted by algorithmic certainty, strictly filtered across 13 approved markets and 54 whitelisted nations.
               </p>
             </div>
 
@@ -115,7 +115,7 @@ export default function WeekendPage() {
                 )}
               >
                 <Layers className="h-4 w-4" />
-                <span>Upcoming Slate (50)</span>
+                <span>Upcoming Slate (15)</span>
               </button>
 
               <button

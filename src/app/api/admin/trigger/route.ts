@@ -108,7 +108,7 @@ export async function POST(request: Request) {
       return NextResponse.json({
         success: true,
         job: "weekend",
-        message: `Weekend 50 Slate generated: ${picks.length} matches analyzed and persisted.`,
+        message: `Weekend 15 Slate generated: ${picks.length} matches analyzed and persisted.`,
         data: {
           count: picks.length,
           dbSavedCount: result.dbSavedCount,

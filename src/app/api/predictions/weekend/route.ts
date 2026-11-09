@@ -38,7 +38,7 @@ export async function GET(request: Request) {
         .innerJoin(matches, eq(predictions.matchId, matches.id))
         .where(eq(predictions.isWeekendPick, true))
         .orderBy(desc(predictions.confidenceScore))
-        .limit(50);
+        .limit(15);
 
       if (rows && rows.length > 0) {
         const dbPicks = rows.map((r) => ({

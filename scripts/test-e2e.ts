@@ -180,6 +180,8 @@ async function runEndToEndTests() {
     assert("Weekend pipeline executed without errors", typeof weekendRes.success === "boolean");
 
     if (weekendRes.picks.length > 0) {
+      assert("Weekend picks capped at maximum 15 matches (100 req/day quota safeguard)", weekendRes.picks.length <= 15);
+
       // Verify deduplication
       const fixtureIds = weekendRes.picks.map((p) => p.fixture.apiFixtureId);
       const uniqueIds = new Set(fixtureIds);
