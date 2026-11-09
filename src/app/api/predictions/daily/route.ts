@@ -1,4 +1,7 @@
+export const maxDuration = 60;
+
 import { NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { runWeekdayPredictionPipeline } from "@/lib/engine/prediction-engine";
 
 export async function GET(request: Request) {
@@ -7,6 +10,12 @@ export async function GET(request: Request) {
     const date = searchParams.get("date") || undefined;
 
     const result = await runWeekdayPredictionPipeline(date);
+
+    try {
+      revalidatePath("/", "layout");
+    } catch (revalErr) {
+      console.warn("Daily predictions cache revalidation warning:", revalErr);
+    }
 
     return NextResponse.json({
       success: true,

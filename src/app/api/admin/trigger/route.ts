@@ -1,4 +1,7 @@
+export const maxDuration = 60;
+
 import { NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { runWeekdayPredictionPipeline, runWeekendPredictionPipeline } from "@/lib/engine/prediction-engine";
 import { settlePendingPredictions } from "@/lib/engine/settlement";
 import { pushDailyPickAlert, pushWeekend50Alert, pushSettlementAlert } from "@/lib/telegram";
@@ -42,6 +45,13 @@ export async function POST(request: Request) {
         // Continue even if Telegram key is unconfigured
       }
 
+      // Force cache clear
+      try {
+        revalidatePath("/", "layout");
+      } catch (revalErr) {
+        console.warn("Trigger cache revalidation warning:", revalErr);
+      }
+
       return NextResponse.json({
         success: true,
         job: "daily",
@@ -74,6 +84,13 @@ export async function POST(request: Request) {
         // Continue
       }
 
+      // Force cache clear
+      try {
+        revalidatePath("/", "layout");
+      } catch (revalErr) {
+        console.warn("Trigger cache revalidation warning:", revalErr);
+      }
+
       return NextResponse.json({
         success: true,
         job: "weekend",
@@ -102,6 +119,13 @@ export async function POST(request: Request) {
         } catch {
           // Continue
         }
+      }
+
+      // Force cache clear
+      try {
+        revalidatePath("/", "layout");
+      } catch (revalErr) {
+        console.warn("Trigger cache revalidation warning:", revalErr);
       }
 
       return NextResponse.json({

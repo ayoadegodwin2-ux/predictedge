@@ -1,4 +1,7 @@
+export const maxDuration = 60;
+
 import { NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { db } from "@/db";
 import { predictions, matches } from "@/db/schema";
 import { desc, eq } from "drizzle-orm";
@@ -91,6 +94,12 @@ export async function DELETE(request: Request) {
 
     await db.delete(predictions).where(eq(predictions.id, id));
 
+    try {
+      revalidatePath("/", "layout");
+    } catch (revalErr) {
+      console.warn("Delete cache revalidation warning:", revalErr);
+    }
+
     return NextResponse.json({
       success: true,
       message: `Prediction #${id} deleted successfully from Supabase`,
@@ -125,6 +134,12 @@ export async function PATCH(request: Request) {
     if (finalScore !== undefined) updates.finalScore = finalScore;
 
     await db.update(predictions).set(updates).where(eq(predictions.id, id));
+
+    try {
+      revalidatePath("/", "layout");
+    } catch (revalErr) {
+      console.warn("Patch cache revalidation warning:", revalErr);
+    }
 
     return NextResponse.json({
       success: true,

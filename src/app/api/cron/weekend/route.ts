@@ -1,4 +1,7 @@
+export const maxDuration = 60;
+
 import { NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { runWeekendPredictionPipeline } from "@/lib/engine/prediction-engine";
 import { pushWeekend50Alert } from "@/lib/telegram";
 
@@ -33,6 +36,13 @@ export async function GET(request: Request) {
       topLeagues,
       averageOdds: avgOdds,
     });
+
+    // 3. Force cache clear across entire site layout for instant client update
+    try {
+      revalidatePath("/", "layout");
+    } catch (revalErr) {
+      console.warn("Weekend cron cache revalidation warning:", revalErr);
+    }
 
     return NextResponse.json({
       success: true,

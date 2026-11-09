@@ -11,7 +11,7 @@ import { matches, predictions } from "../src/db/schema";
 import { isWhitelistedLeague } from "../src/lib/leagues";
 import { isWithinWeekdayWindow, isWithinWeekendWindow, isApprovedMarket } from "../src/lib/engine/market-filter";
 import { calculateMarketConfidence } from "../src/lib/engine/algorithm";
-import { runWeekdayPredictionPipeline, runWeekendPredictionPipeline } from "../src/lib/engine/prediction-engine";
+import { runWeekdayPredictionPipeline, runWeekendPredictionPipeline, isStrictFutureGame } from "../src/lib/engine/prediction-engine";
 import { get14DayHistoryFromDb, calculateAccuracy } from "../src/lib/engine/history";
 
 async function runEndToEndTests() {
@@ -132,10 +132,36 @@ async function runEndToEndTests() {
   assert("Goal average & tactical metrics computed", homeWinScore.goalStatsScore > 0 && homeWinScore.tacticalScore > 0);
 
   // --- TEST 5: Weekday Pipeline Execution (Step 21) ---
-  console.log("\n5. WEEKDAY PIPELINE EXECUTION (Step 21)");
+  console.log("\n5. WEEKDAY PIPELINE & STRICT FUTURE-GAMES FILTER (Step 21)");
+
+  // Future-Games Filter Unit Audit
+  const pastFixture = {
+    apiFixtureId: 9001,
+    homeTeamId: 10,
+    homeTeam: "Past Team A",
+    awayTeamId: 11,
+    awayTeam: "Past Team B",
+    leagueId: 39,
+    leagueName: "Premier League",
+    country: "England",
+    countryFlag: "🏴󠁧󠁢󠁥󠁮󠁧󠁿",
+    kickoffTime: new Date(Date.now() - 3600000).toISOString(),
+    status: "NS",
+  };
+  const liveFixture = { ...pastFixture, kickoffTime: new Date(Date.now() + 3600000).toISOString(), status: "1H" };
+  const finishedFixture = { ...pastFixture, kickoffTime: new Date(Date.now() - 7200000).toISOString(), status: "FT" };
+  const validFutureFixture = { ...pastFixture, kickoffTime: new Date(Date.now() + 7200000).toISOString(), status: "NS" };
+
+  assert("Strict Future Filter rejects fixture that already kicked off (past timestamp)", !isStrictFutureGame(pastFixture));
+  assert("Strict Future Filter rejects live match (status !== 'NS')", !isStrictFutureGame(liveFixture));
+  assert("Strict Future Filter rejects finished match (status 'FT')", !isStrictFutureGame(finishedFixture));
+  assert("Strict Future Filter approves genuine upcoming unplayed match (future + 'NS')", isStrictFutureGame(validFutureFixture));
+
   try {
     const weekdayRes = await runWeekdayPredictionPipeline();
     assert("Weekday pipeline isolated single top pick", !!weekdayRes.selectedPick);
+    assert("Weekday pick status is strictly 'NS'", weekdayRes.selectedPick.fixture.status === "NS");
+    assert("Weekday pick kickoff is strictly in the future", new Date(weekdayRes.selectedPick.fixture.kickoffTime).getTime() > Date.now());
     assert("Weekday pick odds within 1.30-1.50 window", weekdayRes.selectedPick.odd.odds >= 1.30 && weekdayRes.selectedPick.odd.odds <= 1.50);
     assert("Weekday pick confidence >= 80%", weekdayRes.selectedPick.algorithm.confidenceScore >= 80);
     assert("Weekday pick successfully persisted to database", weekdayRes.dbSaved);
@@ -153,6 +179,10 @@ async function runEndToEndTests() {
     const fixtureIds = weekendRes.picks.map((p) => p.fixture.apiFixtureId);
     const uniqueIds = new Set(fixtureIds);
     assert("Zero duplicate matches in the 50 games (100% unique)", uniqueIds.size === weekendRes.picks.length);
+
+    // Verify strict future game status
+    const allStrictFuture = weekendRes.picks.every((p) => p.fixture.status === "NS" && new Date(p.fixture.kickoffTime).getTime() > Date.now());
+    assert("All 50 weekend games have status 'NS' and future kickoff times", allStrictFuture);
 
     // Verify odds constraints
     const allOddsInRange = weekendRes.picks.every((p) => p.odd.odds >= 1.20 && p.odd.odds <= 1.80);

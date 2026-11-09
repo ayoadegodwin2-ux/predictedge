@@ -1,4 +1,7 @@
+export const maxDuration = 60;
+
 import { NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { runWeekdayPredictionPipeline } from "@/lib/engine/prediction-engine";
 import { pushDailyPickAlert } from "@/lib/telegram";
 
@@ -33,6 +36,13 @@ export async function GET(request: Request) {
       odds: pick.odd.odds,
       confidence: pick.algorithm.confidenceScore,
     });
+
+    // 3. Force cache clear across entire site layout for instant client update
+    try {
+      revalidatePath("/", "layout");
+    } catch (revalErr) {
+      console.warn("Daily cron cache revalidation warning:", revalErr);
+    }
 
     return NextResponse.json({
       success: true,

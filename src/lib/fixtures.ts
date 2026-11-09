@@ -63,9 +63,23 @@ export async function fetchFixturesForDate(
 
   if (result.success && result.data && Array.isArray(result.data)) {
     const rawMatches = result.data;
+    const nowMs = Date.now();
 
-    // Apply Step 16 Whitelist Filter: ALL leagues in the 54 countries + Int. Clubs
-    const filtered = rawMatches.filter((item) => isWhitelistedLeague(item.league));
+    // Apply Step 16 Whitelist Filter AND Strict Future-Games Filter:
+    // 1. ALL leagues in the 54 approved countries + Int. Clubs
+    // 2. Strictly enforce status.short === 'NS' (Not Started)
+    // 3. Strictly ignore games that have already kicked off (kickoffTime in the future)
+    const filtered = rawMatches.filter((item) => {
+      if (!isWhitelistedLeague(item.league)) return false;
+      if (item.fixture?.status?.short !== "NS") return false;
+
+      const kickoffMs = new Date(item.fixture.date).getTime();
+      if (!isNaN(kickoffMs) && kickoffMs <= nowMs) {
+        return false;
+      }
+
+      return true;
+    });
 
     const normalized: NormalizedMatchFixture[] = filtered.map((item) => ({
       apiFixtureId: item.fixture.id,
@@ -90,6 +104,7 @@ export async function fetchFixturesForDate(
   }
 
   // Graceful fallback for local preview or unconfigured API key
+  const futureDailyKickoff = new Date(Date.now() + 6 * 3600 * 1000).toISOString();
   const fallbackList: NormalizedMatchFixture[] = [
     {
       apiFixtureId: mockDailyPick.id,
@@ -101,7 +116,7 @@ export async function fetchFixturesForDate(
       leagueName: mockDailyPick.league,
       country: mockDailyPick.country,
       countryFlag: mockDailyPick.countryFlag,
-      kickoffTime: mockDailyPick.kickoff,
+      kickoffTime: futureDailyKickoff,
       status: "NS",
     },
   ];
@@ -144,8 +159,8 @@ export async function fetchWeekendFixturesPool(
     return { fixtures: combined, isMock: false };
   }
 
-  // Fallback to our 50 verified games
-  const fallbackList: NormalizedMatchFixture[] = mockWeekendPicks.map((p) => ({
+  // Fallback to our 50 verified games with dynamically guaranteed future kickoff times
+  const fallbackList: NormalizedMatchFixture[] = mockWeekendPicks.map((p, idx) => ({
     apiFixtureId: p.id + 5000,
     homeTeamId: p.id * 10,
     homeTeam: p.homeTeam,
@@ -155,7 +170,7 @@ export async function fetchWeekendFixturesPool(
     leagueName: p.league,
     country: p.country,
     countryFlag: p.countryFlag,
-    kickoffTime: p.kickoff,
+    kickoffTime: new Date(Date.now() + 24 * 3600 * 1000 + idx * 1800 * 1000).toISOString(),
     status: "NS",
   }));
 

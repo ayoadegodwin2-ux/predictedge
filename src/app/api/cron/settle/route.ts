@@ -1,4 +1,7 @@
+export const maxDuration = 60;
+
 import { NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { settlePendingPredictions } from "@/lib/engine/settlement";
 import { pushSettlementAlert } from "@/lib/telegram";
 
@@ -31,6 +34,13 @@ export async function GET(request: Request) {
         lostCount: settlementSummary.lostCount,
         winRatePct: settlementSummary.winRatePct,
       });
+    }
+
+    // 3. Force cache clear across entire site layout for instant client update
+    try {
+      revalidatePath("/", "layout");
+    } catch (revalErr) {
+      console.warn("Settlement cron cache revalidation warning:", revalErr);
     }
 
     return NextResponse.json({
