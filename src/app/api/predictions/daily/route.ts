@@ -3,10 +3,13 @@ export const revalidate = 0;
 export const maxDuration = 60;
 
 import { NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { db } from "@/db";
 import { predictions, matches } from "@/db/schema";
 import { eq, desc } from "drizzle-orm";
 import { getCountryFlag } from "@/lib/leagues";
+import { runWeekdayPredictionPipeline } from "@/lib/engine/prediction-engine";
+import { pushDailyPickAlert } from "@/lib/telegram";
 
 /**
  * GET /api/predictions/daily
@@ -82,5 +85,64 @@ export async function GET() {
       { success: false, error: message },
       { status: 500 }
     );
+  }
+}
+
+/**
+ * POST /api/predictions/daily
+ * Triggers weekday prediction generation, saves to Supabase, and immediately broadcasts to Telegram.
+ */
+export async function POST() {
+  try {
+    const pipelineResult = await runWeekdayPredictionPipeline();
+    if (!pipelineResult.success || !pipelineResult.selectedPick) {
+      return NextResponse.json({
+        success: false,
+        message: pipelineResult.message || "No eligible live fixtures met criteria today.",
+      }, { status: 404 });
+    }
+
+    const pick = pipelineResult.selectedPick;
+
+    // Immediately dispatch Telegram broadcast right after DB save
+    let telegramAlert;
+    try {
+      telegramAlert = await pushDailyPickAlert({
+        homeTeam: pick.fixture.homeTeam,
+        awayTeam: pick.fixture.awayTeam,
+        league: pick.fixture.leagueName,
+        country: pick.fixture.country,
+        market: pick.odd.market,
+        odds: pick.odd.odds,
+        confidence: pick.algorithm.confidenceScore,
+      });
+      if (telegramAlert && !telegramAlert.success) {
+        console.error("[PREDICTIONS DAILY POST TELEGRAM ERROR]", telegramAlert.error);
+      }
+    } catch (tgErr) {
+      console.error("[PREDICTIONS DAILY POST TELEGRAM EXCEPTION]", tgErr);
+    }
+
+    try {
+      revalidatePath("/", "layout");
+    } catch (revalErr) {
+      console.warn("Daily prediction cache revalidation warning:", revalErr);
+    }
+
+    return NextResponse.json({
+      success: true,
+      data: {
+        match: `${pick.fixture.homeTeam} vs ${pick.fixture.awayTeam}`,
+        market: pick.odd.market,
+        odds: pick.odd.odds,
+        confidence: pick.algorithm.confidenceScore,
+        dbSaved: pipelineResult.dbSaved,
+        telegramAlert,
+      },
+    });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Pipeline trigger failed";
+    console.error("[PREDICTIONS DAILY POST ERROR]", message);
+    return NextResponse.json({ success: false, error: message }, { status: 500 });
   }
 }

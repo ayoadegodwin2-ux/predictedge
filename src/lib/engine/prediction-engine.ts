@@ -100,6 +100,11 @@ export async function evaluateFixturePredictions(
       newsContext
     );
 
+    // 4. Skip markets with insufficient live stats or below minimum confidence threshold (80% weekday, 75% weekend)
+    if (algoResult.insufficientData || algoResult.confidenceScore < (isWeekend ? 75 : 80)) {
+      continue;
+    }
+
     candidates.push({
       fixture,
       odd,

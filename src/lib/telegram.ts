@@ -17,7 +17,7 @@ export async function sendTelegramMessage(text: string): Promise<TelegramSendRes
   const chatId = process.env.TELEGRAM_CHAT_ID;
 
   if (!token || !chatId || token === "your_bot_token_from_botfather") {
-    console.warn("TELEGRAM_BOT_TOKEN or TELEGRAM_CHAT_ID is not configured in .env.local");
+    console.error("[TELEGRAM BROADCAST ERROR] TELEGRAM_BOT_TOKEN or TELEGRAM_CHAT_ID is missing or unconfigured in environment variables.");
     return {
       success: false,
       error: "Telegram credentials missing from .env.local. Alert was generated but not sent.",
@@ -27,7 +27,10 @@ export async function sendTelegramMessage(text: string): Promise<TelegramSendRes
   const url = `https://api.telegram.org/bot${token}/sendMessage`;
 
   try {
-    const res = await fetch(url, {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 8000); // 8-second safety timeout to prevent Vercel execution lock
+
+    let res = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -36,23 +39,45 @@ export async function sendTelegramMessage(text: string): Promise<TelegramSendRes
         parse_mode: "Markdown",
         disable_web_page_preview: false,
       }),
+      signal: controller.signal,
     });
 
-    const json = await res.json();
+    clearTimeout(timeoutId);
+    let json = await res.json();
+
+    // Fallback if Markdown entity parsing failed due to special characters in team/league names
+    if (!res.ok && json.description && json.description.includes("can't parse entities")) {
+      console.warn("[TELEGRAM BROADCAST WARNING] Markdown entity parsing failed. Retrying in plain text...");
+      const plainRes = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          chat_id: chatId,
+          text: text.replace(/[*_`\[\]()]/g, ""),
+          disable_web_page_preview: false,
+        }),
+      });
+      json = await plainRes.json();
+      res = plainRes;
+    }
 
     if (!res.ok || !json.ok) {
+      const errorMsg = json.description || `HTTP ${res.status}: Failed to deliver Telegram message`;
+      console.error("[TELEGRAM BROADCAST ERROR]", errorMsg);
       return {
         success: false,
-        error: json.description || `HTTP ${res.status}: Failed to deliver Telegram message`,
+        error: errorMsg,
       };
     }
 
+    console.log("[TELEGRAM BROADCAST SUCCESS] Alert sent successfully. Message ID:", json.result?.message_id);
     return {
       success: true,
       messageId: json.result?.message_id,
     };
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Network error";
+    console.error("[TELEGRAM BROADCAST EXCEPTION]", message);
     return {
       success: false,
       error: `Telegram dispatch failed: ${message}`,

@@ -55,6 +55,10 @@ interface ApiFixtureScoreResponse {
       long: string;
     };
   };
+  teams?: {
+    home?: { id: number; name: string };
+    away?: { id: number; name: string };
+  };
   goals: {
     home: number | null;
     away: number | null;
@@ -63,6 +67,12 @@ interface ApiFixtureScoreResponse {
     halftime: { home: number | null; away: number | null };
     fulltime: { home: number | null; away: number | null };
   };
+  events?: Array<{
+    time?: { elapsed: number; extra: number | null };
+    team?: { id: number; name: string };
+    type?: string;
+    detail?: string;
+  }>;
 }
 
 /**
@@ -119,6 +129,7 @@ export async function settlePendingPredictions(): Promise<SettlementSummary> {
       let awayGoals: number | null = null;
       let htHome: number | null = null;
       let htAway: number | null = null;
+      let firstHalfGoalsFromEvents: number | null = null;
       let isMatchFinished = false;
 
       // Try fetching live scores from API-Sports if valid fixture ID
@@ -134,22 +145,52 @@ export async function settlePendingPredictions(): Promise<SettlementSummary> {
 
             if (["FT", "AET", "PEN"].includes(statusShort)) {
               isMatchFinished = true;
-              homeGoals = fixData.goals?.home ?? 0;
-              awayGoals = fixData.goals?.away ?? 0;
+              homeGoals = fixData.goals?.home ?? fixData.score?.fulltime?.home ?? 0;
+              awayGoals = fixData.goals?.away ?? fixData.score?.fulltime?.away ?? 0;
               htHome = fixData.score?.halftime?.home ?? null;
               htAway = fixData.score?.halftime?.away ?? null;
-            } else if (["1H", "2H", "HT", "NS", "TBD"].includes(statusShort)) {
+
+              // Strictly inspect fixture.events for first-half goals
+              if (fixData.events && Array.isArray(fixData.events)) {
+                let eventHomeGoals = 0;
+                let eventAwayGoals = 0;
+                for (const ev of fixData.events) {
+                  if (ev.type === "Goal" && ev.detail !== "Missed Penalty") {
+                    const elapsed = ev.time?.elapsed ?? 0;
+                    if (elapsed <= 45) {
+                      firstHalfGoalsFromEvents = (firstHalfGoalsFromEvents ?? 0) + 1;
+                      if (ev.team?.id && fixData.teams?.home?.id && ev.team.id === fixData.teams.home.id) {
+                        eventHomeGoals++;
+                      } else if (ev.team?.id && fixData.teams?.away?.id && ev.team.id === fixData.teams.away.id) {
+                        eventAwayGoals++;
+                      }
+                    }
+                  }
+                }
+                if (firstHalfGoalsFromEvents !== null && firstHalfGoalsFromEvents > 0) {
+                  htHome = Math.max(htHome ?? 0, eventHomeGoals);
+                  htAway = Math.max(htAway ?? 0, eventAwayGoals);
+                }
+              }
+            } else if (["1H", "2H", "HT", "NS", "TBD", "PST", "CANC", "SUSP"].includes(statusShort)) {
               stillPendingCount++;
               continue;
             }
           }
-        } catch {
-          // If API network call fails, proceed to deterministic scoring
+        } catch (apiErr) {
+          console.warn(`[SETTLEMENT] API fetch failed for fixture ${record.apiFixtureId}:`, apiErr);
         }
       }
 
-      // If test fixture, fallback, or API not available, generate deterministic score
+      // For live real matches (apiFixtureId > 5000), if API did not return finished status, keep pending!
       if (!isMatchFinished || homeGoals === null || awayGoals === null) {
+        if (record.apiFixtureId && record.apiFixtureId > 5000) {
+          // Do NOT falsely settle live production predictions with random fake scores
+          stillPendingCount++;
+          continue;
+        }
+
+        // Test/mock fixture fallback only (IDs <= 5000 in test suite)
         const detScore = getDeterministicScore(record.apiFixtureId || record.matchId);
         homeGoals = detScore.home;
         awayGoals = detScore.away;
@@ -158,13 +199,14 @@ export async function settlePendingPredictions(): Promise<SettlementSummary> {
         isMatchFinished = true;
       }
 
-      // Grade outcome
+      // Grade outcome strictly using FT, HT score and events
       const outcome = gradeMarketOutcome(
         record.market,
         homeGoals,
         awayGoals,
         htHome,
-        htAway
+        htAway,
+        firstHalfGoalsFromEvents
       );
 
       const finalScoreStr = `${homeGoals} - ${awayGoals}`;

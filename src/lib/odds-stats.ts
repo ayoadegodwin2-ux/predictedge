@@ -128,6 +128,7 @@ interface RawOddsResponse {
 }
 
 interface RawH2HMatch {
+  fixture?: { id: number; date: string; status: { short: string } };
   teams: {
     home: { id: number; name: string };
     away: { id: number; name: string };
@@ -291,72 +292,82 @@ export async function fetchPreMatchOdds(fixtureId: number): Promise<NormalizedOd
  */
 export async function fetchHeadToHeadStats(homeId: number, awayId: number): Promise<H2HRecord> {
   const res = await apiSportsFetch<RawH2HMatch[]>("fixtures/headtohead", {
-    params: { h2h: `${homeId}-${awayId}`, last: 15 },
+    params: { h2h: `${homeId}-${awayId}` },
     revalidateSeconds: 3600,
   });
 
   if (res.success && res.data && res.data.length > 0) {
-    const matches = res.data;
-    let homeWins = 0;
-    let draws = 0;
-    let awayWins = 0;
-    let totalGoals = 0;
-    let bttsCount = 0;
-    let over15Count = 0;
-    let over25Count = 0;
-    let recentHomeWins = 0;
-    let recentAwayWins = 0;
-    let recentDraws = 0;
-    let homeCleanSheets = 0;
-    let awayCleanSheets = 0;
-    const last15Scores: string[] = [];
+    const matches = res.data
+      .filter((m) => !m.fixture?.status?.short || ["FT", "AET", "PEN"].includes(m.fixture.status.short))
+      .sort((a, b) => {
+        const timeA = a.fixture?.date ? new Date(a.fixture.date).getTime() : 0;
+        const timeB = b.fixture?.date ? new Date(b.fixture.date).getTime() : 0;
+        return timeB - timeA;
+      })
+      .slice(0, 15);
 
-    matches.forEach((m, idx) => {
-      const hG = m.goals.home ?? 0;
-      const aG = m.goals.away ?? 0;
-      totalGoals += hG + aG;
-      last15Scores.push(`${hG}-${aG}`);
+    if (matches.length > 0) {
+      let homeWins = 0;
+      let draws = 0;
+      let awayWins = 0;
+      let totalGoals = 0;
+      let bttsCount = 0;
+      let over15Count = 0;
+      let over25Count = 0;
+      let recentHomeWins = 0;
+      let recentAwayWins = 0;
+      let recentDraws = 0;
+      let homeCleanSheets = 0;
+      let awayCleanSheets = 0;
+      const last15Scores: string[] = [];
 
-      if (hG > 0 && aG > 0) bttsCount++;
-      if (hG + aG >= 2) over15Count++;
-      if (hG + aG >= 3) over25Count++;
+      matches.forEach((m, idx) => {
+        const hG = m.goals.home ?? 0;
+        const aG = m.goals.away ?? 0;
+        totalGoals += hG + aG;
+        last15Scores.push(`${hG}-${aG}`);
 
-      const isHomeTeamWinner = (m.teams.home.id === homeId && hG > aG) || (m.teams.away.id === homeId && aG > hG);
-      const isAwayTeamWinner = (m.teams.home.id === awayId && hG > aG) || (m.teams.away.id === awayId && aG > hG);
+        if (hG > 0 && aG > 0) bttsCount++;
+        if (hG + aG >= 2) over15Count++;
+        if (hG + aG >= 3) over25Count++;
 
-      if (hG === aG) {
-        draws++;
-        if (idx < 5) recentDraws++;
-      } else if (isHomeTeamWinner) {
-        homeWins++;
-        if (idx < 5) recentHomeWins++;
-      } else if (isAwayTeamWinner) {
-        awayWins++;
-        if (idx < 5) recentAwayWins++;
-      }
+        const isHomeTeamWinner = (m.teams.home.id === homeId && hG > aG) || (m.teams.away.id === homeId && aG > hG);
+        const isAwayTeamWinner = (m.teams.home.id === awayId && hG > aG) || (m.teams.away.id === awayId && aG > hG);
 
-      if (m.teams.home.id === homeId && aG === 0) homeCleanSheets++;
-      if (m.teams.away.id === homeId && hG === 0) homeCleanSheets++;
-      if (m.teams.home.id === awayId && aG === 0) awayCleanSheets++;
-      if (m.teams.away.id === awayId && hG === 0) awayCleanSheets++;
-    });
+        if (hG === aG) {
+          draws++;
+          if (idx < 5) recentDraws++;
+        } else if (isHomeTeamWinner) {
+          homeWins++;
+          if (idx < 5) recentHomeWins++;
+        } else if (isAwayTeamWinner) {
+          awayWins++;
+          if (idx < 5) recentAwayWins++;
+        }
 
-    return {
-      matchesPlayed: matches.length,
-      homeWins,
-      draws,
-      awayWins,
-      avgTotalGoals: matches.length > 0 ? Number((totalGoals / matches.length).toFixed(1)) : 2.6,
-      bttsCount,
-      over15Count,
-      over25Count,
-      recentHomeWins,
-      recentAwayWins,
-      recentDraws,
-      homeCleanSheets,
-      awayCleanSheets,
-      last15Scores,
-    };
+        if (m.teams.home.id === homeId && aG === 0) homeCleanSheets++;
+        if (m.teams.away.id === homeId && hG === 0) homeCleanSheets++;
+        if (m.teams.home.id === awayId && aG === 0) awayCleanSheets++;
+        if (m.teams.away.id === awayId && hG === 0) awayCleanSheets++;
+      });
+
+      return {
+        matchesPlayed: matches.length,
+        homeWins,
+        draws,
+        awayWins,
+        avgTotalGoals: matches.length > 0 ? Number((totalGoals / matches.length).toFixed(1)) : 2.6,
+        bttsCount,
+        over15Count,
+        over25Count,
+        recentHomeWins,
+        recentAwayWins,
+        recentDraws,
+        homeCleanSheets,
+        awayCleanSheets,
+        last15Scores,
+      };
+    }
   }
 
   // No head to head history available
@@ -399,78 +410,99 @@ export async function fetchRecentTeamMatches(teamId: number): Promise<{
   venueMatches: number;
   venueWinPct: number;
 }> {
-  const res = await apiSportsFetch<RawRecentFixture[]>("fixtures", {
-    params: { team: teamId, last: 10 },
+  const currentYear = new Date().getFullYear();
+  // Free plan permits seasons up to 2024
+  const targetSeason = Math.min(currentYear, 2024);
+
+  let res = await apiSportsFetch<RawRecentFixture[]>("fixtures", {
+    params: { team: teamId, season: targetSeason },
     revalidateSeconds: 1800,
   });
 
+  if ((!res.success || !res.data || res.data.length === 0) && targetSeason > 2023) {
+    res = await apiSportsFetch<RawRecentFixture[]>("fixtures", {
+      params: { team: teamId, season: targetSeason - 1 },
+      revalidateSeconds: 1800,
+    });
+  }
+
   if (res.success && res.data && res.data.length > 0) {
-    const list = res.data;
-    let points = 0;
-    let formChars = "";
-    let scored = 0;
-    let conceded = 0;
-    let cleanSheets = 0;
-    let failedToScore = 0;
-    let over15 = 0;
-    let over25 = 0;
-    let btts = 0;
-    let venueWins = 0;
-    let venueMatches = 0;
+    const list = res.data
+      .filter((m) => !m.fixture?.status?.short || ["FT", "AET", "PEN"].includes(m.fixture.status.short))
+      .sort((a, b) => {
+        const timeA = a.fixture?.date ? new Date(a.fixture.date).getTime() : 0;
+        const timeB = b.fixture?.date ? new Date(b.fixture.date).getTime() : 0;
+        return timeB - timeA;
+      })
+      .slice(0, 10);
 
-    for (const item of list) {
-      const isHome = item.teams.home.id === teamId;
-      const myGoals = (isHome ? item.goals.home : item.goals.away) ?? 0;
-      const oppGoals = (isHome ? item.goals.away : item.goals.home) ?? 0;
+    if (list.length > 0) {
+      let points = 0;
+      let formChars = "";
+      let scored = 0;
+      let conceded = 0;
+      let cleanSheets = 0;
+      let failedToScore = 0;
+      let over15 = 0;
+      let over25 = 0;
+      let btts = 0;
+      let venueWins = 0;
+      let venueMatches = 0;
 
-      scored += myGoals;
-      conceded += oppGoals;
+      for (const item of list) {
+        const isHome = item.teams.home.id === teamId;
+        const myGoals = (isHome ? item.goals.home : item.goals.away) ?? 0;
+        const oppGoals = (isHome ? item.goals.away : item.goals.home) ?? 0;
 
-      if (myGoals > oppGoals) {
-        points += 3;
-        formChars += "W";
-      } else if (myGoals === oppGoals) {
-        points += 1;
-        formChars += "D";
-      } else {
-        formChars += "L";
+        scored += myGoals;
+        conceded += oppGoals;
+
+        if (myGoals > oppGoals) {
+          points += 3;
+          formChars += "W";
+        } else if (myGoals === oppGoals) {
+          points += 1;
+          formChars += "D";
+        } else {
+          formChars += "L";
+        }
+
+        if (oppGoals === 0) cleanSheets++;
+        if (myGoals === 0) failedToScore++;
+        if (myGoals + oppGoals >= 2) over15++;
+        if (myGoals + oppGoals >= 3) over25++;
+        if (myGoals > 0 && oppGoals > 0) btts++;
+
+        // Venue performance (home team at home, away team away)
+        if (isHome) {
+          venueMatches++;
+          if (myGoals > oppGoals) venueWins++;
+        }
       }
 
-      if (oppGoals === 0) cleanSheets++;
-      if (myGoals === 0) failedToScore++;
-      if (myGoals + oppGoals >= 2) over15++;
-      if (myGoals + oppGoals >= 3) over25++;
-      if (myGoals > 0 && oppGoals > 0) btts++;
+      const count = list.length;
+      const formScore10 = Math.round((points / (count * 3)) * 100);
+      const last5Str = formChars.slice(-5);
 
-      // Venue performance (home team at home, away team away)
-      if (isHome) {
-        venueMatches++;
-        if (myGoals > oppGoals) venueWins++;
-      }
+      return {
+        formPoints10: points,
+        formScore10,
+        formString10: formChars,
+        last5FormString: last5Str,
+        scoredAvg10: Number((scored / count).toFixed(2)),
+        concededAvg10: Number((conceded / count).toFixed(2)),
+        cleanSheetCount10: cleanSheets,
+        cleanSheetPct10: Math.round((cleanSheets / count) * 100),
+        failedToScoreCount10: failedToScore,
+        failedToScorePct10: Math.round((failedToScore / count) * 100),
+        over15Rate10: Math.round((over15 / count) * 100),
+        over25Rate10: Math.round((over25 / count) * 100),
+        bttsRate10: Math.round((btts / count) * 100),
+        venueWins,
+        venueMatches,
+        venueWinPct: venueMatches > 0 ? Math.round((venueWins / venueMatches) * 100) : 60,
+      };
     }
-
-    const count = list.length;
-    const formScore10 = Math.round((points / (count * 3)) * 100);
-    const last5Str = formChars.slice(-5);
-
-    return {
-      formPoints10: points,
-      formScore10,
-      formString10: formChars,
-      last5FormString: last5Str,
-      scoredAvg10: Number((scored / count).toFixed(2)),
-      concededAvg10: Number((conceded / count).toFixed(2)),
-      cleanSheetCount10: cleanSheets,
-      cleanSheetPct10: Math.round((cleanSheets / count) * 100),
-      failedToScoreCount10: failedToScore,
-      failedToScorePct10: Math.round((failedToScore / count) * 100),
-      over15Rate10: Math.round((over15 / count) * 100),
-      over25Rate10: Math.round((over25 / count) * 100),
-      bttsRate10: Math.round((btts / count) * 100),
-      venueWins,
-      venueMatches,
-      venueWinPct: venueMatches > 0 ? Math.round((venueWins / venueMatches) * 100) : 60,
-    };
   }
 
   // No past matches recorded
@@ -498,7 +530,7 @@ export async function fetchRecentTeamMatches(teamId: number): Promise<{
  * Fetches comprehensive team performance & tactical stats
  */
 export async function fetchTeamStats(teamId: number, leagueId: number, isHome: boolean): Promise<TeamStats> {
-  const season = new Date().getFullYear();
+  const season = Math.min(new Date().getFullYear(), 2024);
 
   // Run team statistics & 10-match individual form in parallel
   const [statsRes, form10] = await Promise.all([

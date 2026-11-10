@@ -38,11 +38,19 @@ export async function GET(request: Request) {
     const topLeagues = Array.from(new Set(picks.map((p) => p.fixture.leagueName)));
 
     // 2. Push Telegram Alert
-    const telegramResult = await pushWeekend50Alert({
-      totalMatches: picks.length,
-      topLeagues,
-      averageOdds: avgOdds,
-    });
+    let telegramResult;
+    try {
+      telegramResult = await pushWeekend50Alert({
+        totalMatches: picks.length,
+        topLeagues,
+        averageOdds: avgOdds,
+      });
+      if (telegramResult && !telegramResult.success) {
+        console.error("[CRON WEEKEND TELEGRAM ERROR] Dispatch returned failure:", telegramResult.error);
+      }
+    } catch (tgErr) {
+      console.error("[CRON WEEKEND TELEGRAM EXCEPTION] Failed to dispatch alert:", tgErr);
+    }
 
     // 3. Force cache clear across entire site layout for instant client update
     try {

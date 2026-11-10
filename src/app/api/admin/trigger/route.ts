@@ -48,8 +48,11 @@ export async function POST(request: Request) {
           odds: pick.odd.odds,
           confidence: pick.algorithm.confidenceScore,
         });
-      } catch {
-        // Continue even if Telegram key is unconfigured
+        if (telegramAlert && !telegramAlert.success) {
+          console.error("[TRIGGER TELEGRAM ERROR] Daily pick dispatch returned failure:", telegramAlert.error);
+        }
+      } catch (tgErr) {
+        console.error("[TRIGGER TELEGRAM EXCEPTION] Failed to dispatch daily pick alert:", tgErr);
       }
 
       // Force cache clear
@@ -94,8 +97,11 @@ export async function POST(request: Request) {
           topLeagues: Array.from(new Set(picks.map((p) => p.fixture.leagueName))),
           averageOdds: avgOdds,
         });
-      } catch {
-        // Continue
+        if (telegramAlert && !telegramAlert.success) {
+          console.error("[TRIGGER TELEGRAM ERROR] Weekend alert dispatch returned failure:", telegramAlert.error);
+        }
+      } catch (tgErr) {
+        console.error("[TRIGGER TELEGRAM EXCEPTION] Failed to dispatch weekend alert:", tgErr);
       }
 
       // Force cache clear
@@ -130,8 +136,11 @@ export async function POST(request: Request) {
             lostCount: result.lostCount,
             winRatePct: result.winRatePct,
           });
-        } catch {
-          // Continue
+          if (telegramAlert && !telegramAlert.success) {
+            console.error("[TRIGGER TELEGRAM ERROR] Settlement alert dispatch returned failure:", telegramAlert.error);
+          }
+        } catch (tgErr) {
+          console.error("[TRIGGER TELEGRAM EXCEPTION] Failed to dispatch settlement alert:", tgErr);
         }
       }
 

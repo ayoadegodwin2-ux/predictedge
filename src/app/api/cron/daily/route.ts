@@ -34,15 +34,23 @@ export async function GET(request: Request) {
     const pick = pipelineResult.selectedPick;
 
     // 2. Push Telegram Alert
-    const telegramResult = await pushDailyPickAlert({
-      homeTeam: pick.fixture.homeTeam,
-      awayTeam: pick.fixture.awayTeam,
-      league: pick.fixture.leagueName,
-      country: pick.fixture.country,
-      market: pick.odd.market,
-      odds: pick.odd.odds,
-      confidence: pick.algorithm.confidenceScore,
-    });
+    let telegramResult;
+    try {
+      telegramResult = await pushDailyPickAlert({
+        homeTeam: pick.fixture.homeTeam,
+        awayTeam: pick.fixture.awayTeam,
+        league: pick.fixture.leagueName,
+        country: pick.fixture.country,
+        market: pick.odd.market,
+        odds: pick.odd.odds,
+        confidence: pick.algorithm.confidenceScore,
+      });
+      if (telegramResult && !telegramResult.success) {
+        console.error("[CRON DAILY TELEGRAM ERROR] Dispatch returned failure:", telegramResult.error);
+      }
+    } catch (tgErr) {
+      console.error("[CRON DAILY TELEGRAM EXCEPTION] Failed to dispatch alert:", tgErr);
+    }
 
     // 3. Force cache clear across entire site layout for instant client update
     try {

@@ -180,9 +180,14 @@ export default function AdminDashboardPage() {
           message: json.error || `Failed to trigger ${job} pipeline`,
         });
       } else {
+        let statusMsg = json.message || `${job.toUpperCase()} triggered successfully!`;
+        const tgAlert = json.data?.telegramAlert;
+        if (tgAlert && !tgAlert.success) {
+          statusMsg += ` [Telegram Notice: ${tgAlert.error}]`;
+        }
         setTriggerStatus({
           type: "success",
-          message: json.message || `${job.toUpperCase()} triggered successfully!`,
+          message: statusMsg,
         });
         // Refresh list to show newly generated predictions
         fetchPredictions(authToken);

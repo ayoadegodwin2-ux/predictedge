@@ -39,7 +39,8 @@ export function gradeMarketOutcome(
   homeGoals: number,
   awayGoals: number,
   htHome?: number | null,
-  htAway?: number | null
+  htAway?: number | null,
+  firstHalfGoalsFromEvents?: number | null
 ): "WON" | "LOST" {
   const m = market.toLowerCase();
   const totalGoals = homeGoals + awayGoals;
@@ -64,12 +65,25 @@ export function gradeMarketOutcome(
     return totalGoals < 5 ? "WON" : "LOST";
   }
 
-  // 5. First Half Over 0.5 Goals
-  if (m.includes("first half") || m.includes("fh over")) {
+  // 5. First Half Over 0.5 Goals (strictly evaluates against score.halftime or fixture.events)
+  if (m.includes("first half") || m.includes("1st half") || m.includes("fh over") || m.includes("ht over")) {
+    // Check halftime score from API-Sports (fixture.score.halftime)
     if (htHome !== undefined && htHome !== null && htAway !== undefined && htAway !== null) {
-      return (htHome + htAway) > 0 ? "WON" : "LOST";
+      if ((htHome + htAway) > 0) return "WON";
     }
-    return totalGoals > 0 ? "WON" : "LOST";
+    // Check goal events within first 45 minutes (fixture.events)
+    if (firstHalfGoalsFromEvents !== undefined && firstHalfGoalsFromEvents !== null) {
+      if (firstHalfGoalsFromEvents > 0) return "WON";
+    }
+    // If halftime score is explicitly 0-0 and no first-half goal events found
+    if (htHome === 0 && htAway === 0 && (firstHalfGoalsFromEvents === null || firstHalfGoalsFromEvents === undefined || firstHalfGoalsFromEvents === 0)) {
+      return "LOST";
+    }
+    // Fallback only if halftime and events data were completely omitted from API
+    if ((htHome === null || htHome === undefined) && (htAway === null || htAway === undefined) && (firstHalfGoalsFromEvents === null || firstHalfGoalsFromEvents === undefined)) {
+      return totalGoals > 0 ? "WON" : "LOST";
+    }
+    return "LOST";
   }
 
   // 6. Both Teams to Score (BTTS / GG)

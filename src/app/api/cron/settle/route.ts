@@ -28,12 +28,19 @@ export async function GET(request: Request) {
     // 2. Dispatch Telegram alert if matches were settled
     let telegramAlert;
     if (settlementSummary.settledCount > 0) {
-      telegramAlert = await pushSettlementAlert({
-        totalSettled: settlementSummary.settledCount,
-        wonCount: settlementSummary.wonCount,
-        lostCount: settlementSummary.lostCount,
-        winRatePct: settlementSummary.winRatePct,
-      });
+      try {
+        telegramAlert = await pushSettlementAlert({
+          totalSettled: settlementSummary.settledCount,
+          wonCount: settlementSummary.wonCount,
+          lostCount: settlementSummary.lostCount,
+          winRatePct: settlementSummary.winRatePct,
+        });
+        if (telegramAlert && !telegramAlert.success) {
+          console.error("[CRON SETTLE TELEGRAM ERROR] Dispatch returned failure:", telegramAlert.error);
+        }
+      } catch (tgErr) {
+        console.error("[CRON SETTLE TELEGRAM EXCEPTION] Failed to dispatch alert:", tgErr);
+      }
     }
 
     // 3. Force cache clear across entire site layout for instant client update

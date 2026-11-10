@@ -48,6 +48,9 @@ async function runSettlementTests() {
   assert("Away Over 0.5: 2-0 is LOST", gradeMarketOutcome("Away Team to Score (Over 0.5)", 2, 0) === "LOST");
   assert("First Half Over 0.5: HT 1-0 is WON", gradeMarketOutcome("First Half Over 0.5 Goals", 2, 1, 1, 0) === "WON");
   assert("First Half Over 0.5: HT 0-0 is LOST", gradeMarketOutcome("First Half Over 0.5 Goals", 1, 0, 0, 0) === "LOST");
+  assert("1st Half Over 0.5: HT 0-3 is WON", gradeMarketOutcome("1st Half Over 0.5", 3, 3, 0, 3) === "WON");
+  assert("1st Half Over 0.5: HT 0-0 with event goal is WON", gradeMarketOutcome("1st Half Over 0.5", 3, 3, 0, 0, 1) === "WON");
+  assert("First Half Over 0.5: null HT with event goal is WON", gradeMarketOutcome("First Half Over 0.5 Goals", 1, 0, null, null, 1) === "WON");
   assert("Handicap -1.5: 3-1 is WON", gradeMarketOutcome("Handicap (-1.5)", 3, 1) === "WON");
   assert("Handicap -1.5: 2-1 is LOST", gradeMarketOutcome("Handicap (-1.5)", 2, 1) === "LOST");
 
