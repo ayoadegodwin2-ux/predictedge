@@ -1,49 +1,17 @@
-"use client";
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
-import { useState, useEffect } from "react";
-import { HistoryView } from "@/components/history/HistoryView";
-import {
-  getCalibrated14DayHistory,
-  getLast14Days,
-  calculateAccuracy,
-  type HistoricalPredictionItem,
-} from "@/lib/engine/history-shared";
 import { History, ShieldCheck } from "lucide-react";
+import { get14DayHistoryFromDb, calculateAccuracy, getLast14Days } from "@/lib/engine/history";
+import { HistoryClientWrapper } from "@/components/history/HistoryClientWrapper";
 
-export default function HistoryPage() {
-  const [historyData, setHistoryData] = useState<HistoricalPredictionItem[]>([]);
-  const [daysList, setDaysList] = useState<
-    Array<{
-      dateStr: string;
-      displayLabel: string;
-      dayOfWeek: string;
-      isToday: boolean;
-    }>
-  >([]);
+export default async function HistoryPage() {
+  const [dbHistory, daysList] = await Promise.all([
+    get14DayHistoryFromDb(),
+    Promise.resolve(getLast14Days()),
+  ]);
 
-  useEffect(() => {
-    // Populate client dates safely without blocking prerender or causing cascading renders
-    const timer = setTimeout(() => {
-      setDaysList(getLast14Days());
-      setHistoryData(getCalibrated14DayHistory());
-    }, 0);
-
-    // Fetch live database history if available
-    fetch("/api/predictions/history")
-      .then((res) => res.json())
-      .then((json) => {
-        if (json.success && json.data?.history?.length > 0) {
-          setHistoryData(json.data.history);
-        }
-      })
-      .catch(() => {
-        // Fallback already loaded
-      });
-
-    return () => clearTimeout(timer);
-  }, []);
-
-  const accuracy = calculateAccuracy(historyData);
+  const accuracy = calculateAccuracy(dbHistory);
 
   return (
     <div className="min-h-[calc(100vh-8rem)] pb-16">
@@ -78,10 +46,10 @@ export default function HistoryPage() {
 
       {/* Main Content */}
       <section className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 pt-8">
-        <HistoryView
-          initialHistory={historyData}
+        <HistoryClientWrapper
+          initialHistory={dbHistory}
           daysList={daysList}
-          accuracy={accuracy}
+          initialAccuracy={accuracy}
         />
       </section>
     </div>
