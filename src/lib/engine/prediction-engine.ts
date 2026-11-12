@@ -201,8 +201,25 @@ export async function persistPredictionsToDatabase(
  * Sorts Mon-Fri predictions and returns/saves ONLY the single #1 highest-confidence pick.
  */
 export async function runWeekdayPredictionPipeline(targetDate?: string): Promise<WeekdayPredictionResult> {
-  const dateStr = targetDate || new Date().toISOString().split("T")[0];
-  const fixturesResult = await fetchFixturesForDate(dateStr);
+  let dateStr = targetDate || new Date().toISOString().split("T")[0];
+  let fixturesResult = await fetchFixturesForDate(dateStr);
+
+  // If today specifically has 0 fixtures and no target date was explicitly passed,
+  // look ahead up to 5 days for the next scheduled matchday across our multi-provider network
+  if (fixturesResult.fixtures.length === 0 && !targetDate) {
+    const baseDate = new Date();
+    for (let offset = 1; offset <= 5; offset++) {
+      const nextDate = new Date(baseDate);
+      nextDate.setUTCDate(baseDate.getUTCDate() + offset);
+      const lookaheadStr = nextDate.toISOString().split("T")[0];
+      const lookaheadResult = await fetchFixturesForDate(lookaheadStr);
+      if (lookaheadResult.fixtures.length > 0) {
+        fixturesResult = lookaheadResult;
+        dateStr = lookaheadStr;
+        break;
+      }
+    }
+  }
 
   const candidatePool: CandidatePrediction[] = [];
 

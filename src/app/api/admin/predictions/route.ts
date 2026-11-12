@@ -6,25 +6,13 @@ import { db } from "@/db";
 import { predictions, matches } from "@/db/schema";
 import { desc, eq } from "drizzle-orm";
 import { getCountryFlag } from "@/lib/leagues";
-
-// Auth helper
-function isAuthorized(request: Request): boolean {
-  const authHeader = request.headers.get("x-admin-token");
-  if (!authHeader) return false;
-  try {
-    const decoded = Buffer.from(authHeader, "base64").toString("utf8");
-    const configuredPassword = process.env.ADMIN_PASSWORD || "admin123";
-    return decoded.endsWith(`:${configuredPassword}`);
-  } catch {
-    return false;
-  }
-}
+import { isRequestAdminAuthorized } from "@/lib/admin-auth";
 
 /**
  * GET /api/admin/predictions - Fetch all predictions with match metadata
  */
 export async function GET(request: Request) {
-  if (!isAuthorized(request)) {
+  if (!isRequestAdminAuthorized(request)) {
     return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
   }
 
@@ -82,7 +70,13 @@ export async function GET(request: Request) {
  * DELETE /api/admin/predictions - Manually delete a prediction
  */
 export async function DELETE(request: Request) {
-  if (!isAuthorized(request)) {
+  let body: any = {};
+  try {
+    body = await request.json();
+  } catch {
+    body = {};
+  }
+  if (!isRequestAdminAuthorized(request, body)) {
     return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
   }
 
@@ -114,7 +108,13 @@ export async function DELETE(request: Request) {
  * PATCH /api/admin/predictions - Manually override / edit a prediction
  */
 export async function PATCH(request: Request) {
-  if (!isAuthorized(request)) {
+  let body: any = {};
+  try {
+    body = await request.json();
+  } catch {
+    body = {};
+  }
+  if (!isRequestAdminAuthorized(request, body)) {
     return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
   }
 

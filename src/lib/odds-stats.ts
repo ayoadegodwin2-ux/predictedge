@@ -11,6 +11,8 @@
 
 import { apiSportsFetch } from "./api-sports";
 import type { NormalizedMatchFixture } from "./fixtures";
+import { fetchOddsForFixture } from "./api/odds-client";
+import { fetchFootballDataH2H } from "./api/football-data";
 
 /**
  * The 13 Strictly Approved Betting Markets
@@ -265,9 +267,28 @@ function extractApprovedMarketOdds(bookmaker: RawBookmaker): NormalizedOdd[] {
 }
 
 /**
- * Fetches pre-match odds for a fixture, strictly mapped to the 13 approved markets
+ * Fetches pre-match odds for a fixture, strictly mapped to the 13 approved markets.
+ * Prioritizes The Odds API, with graceful fallback to API-Sports.
  */
-export async function fetchPreMatchOdds(fixtureId: number): Promise<NormalizedOdd[]> {
+export async function fetchPreMatchOdds(
+  fixtureId: number,
+  homeTeam?: string,
+  awayTeam?: string,
+  leagueName?: string
+): Promise<NormalizedOdd[]> {
+  // 1. Primary: The Odds API for live decimal odds
+  if (homeTeam && awayTeam) {
+    try {
+      const oddsApiResult = await fetchOddsForFixture(homeTeam, awayTeam, leagueName);
+      if (oddsApiResult.length > 0) {
+        return oddsApiResult;
+      }
+    } catch (oddsErr) {
+      console.warn("[Odds-Stats] The Odds API query failed, checking fallback:", oddsErr);
+    }
+  }
+
+  // 2. Secondary fallback: API-Sports
   const res = await apiSportsFetch<RawOddsResponse[]>("odds", {
     params: { fixture: fixtureId },
     revalidateSeconds: 600,
@@ -669,10 +690,12 @@ export async function fetchFixtureStatsAndOdds(
   fixture: NormalizedMatchFixture
 ): Promise<FixtureEnrichedContext> {
   const [odds, homeStats, awayStats, h2h, injuries] = await Promise.all([
-    fetchPreMatchOdds(fixture.apiFixtureId),
+    fetchPreMatchOdds(fixture.apiFixtureId, fixture.homeTeam, fixture.awayTeam, fixture.leagueName),
     fetchTeamStats(fixture.homeTeamId, fixture.leagueId, true),
     fetchTeamStats(fixture.awayTeamId, fixture.leagueId, false),
-    fetchHeadToHeadStats(fixture.homeTeamId, fixture.awayTeamId),
+    fetchFootballDataH2H(fixture.apiFixtureId, fixture.homeTeamId, fixture.awayTeamId).then((data) =>
+      data ? data : fetchHeadToHeadStats(fixture.homeTeamId, fixture.awayTeamId)
+    ),
     fetchInjuriesAndSuspensions(fixture.apiFixtureId, fixture.homeTeamId, fixture.awayTeamId),
   ]);
 

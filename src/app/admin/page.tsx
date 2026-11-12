@@ -100,6 +100,10 @@ export default function AdminDashboardPage() {
       const res = await fetch("/api/admin/predictions", {
         headers: { "x-admin-token": token },
       });
+      if (res.status === 401) {
+        handleLogout();
+        return;
+      }
       const json = await res.json();
       if (json.success && Array.isArray(json.data)) {
         setPredictionsList(json.data);
@@ -111,19 +115,28 @@ export default function AdminDashboardPage() {
     }
   };
 
-  // Check existing session token on mount
+  // Check existing session token on mount across sessionStorage, localStorage, and cookies
   useEffect(() => {
-    const timer = setTimeout(() => {
-      fetchTraffic();
-      const savedToken = sessionStorage.getItem("predictedge_admin_token");
-      if (savedToken) {
-        setAuthToken(savedToken);
-        setIsAuthenticated(true);
-        fetchPredictions(savedToken);
+    fetchTraffic();
+    let token = "";
+    try {
+      token = sessionStorage.getItem("predictedge_admin_token") || "";
+      if (!token) {
+        token = localStorage.getItem("predictedge_admin_token") || "";
       }
-    }, 0);
+      if (!token && typeof document !== "undefined") {
+        const match = document.cookie.match(/(?:^|;\s*)predictedge_admin_token=([^;]*)/);
+        if (match) token = decodeURIComponent(match[1]);
+      }
+    } catch {
+      // Storage access fallback
+    }
 
-    return () => clearTimeout(timer);
+    if (token) {
+      setAuthToken(token);
+      setIsAuthenticated(true);
+      fetchPredictions(token);
+    }
   }, []);
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -143,17 +156,33 @@ export default function AdminDashboardPage() {
         return;
       }
 
-      setAuthToken(json.token);
+      const token = json.token;
+      setAuthToken(token);
       setIsAuthenticated(true);
-      sessionStorage.setItem("predictedge_admin_token", json.token);
-      fetchPredictions(json.token);
+
+      try {
+        sessionStorage.setItem("predictedge_admin_token", token);
+        localStorage.setItem("predictedge_admin_token", token);
+        document.cookie = `predictedge_admin_token=${encodeURIComponent(token)}; path=/; max-age=2592000; SameSite=Lax`;
+      } catch {
+        // Storage access fallback
+      }
+
+      fetchPredictions(token);
     } catch {
       setAuthError("Failed to authenticate. Check server connection.");
     }
   };
 
-  const handleLogout = () => {
-    sessionStorage.removeItem("predictedge_admin_token");
+  const handleLogout = async () => {
+    try {
+      sessionStorage.removeItem("predictedge_admin_token");
+      localStorage.removeItem("predictedge_admin_token");
+      document.cookie = "predictedge_admin_token=; path=/; max-age=0";
+      await fetch("/api/admin/auth", { method: "DELETE" });
+    } catch {
+      // Storage access fallback
+    }
     setAuthToken("");
     setIsAuthenticated(false);
     setPassword("");
@@ -170,7 +199,7 @@ export default function AdminDashboardPage() {
           "Content-Type": "application/json",
           "x-admin-token": authToken,
         },
-        body: JSON.stringify({ job }),
+        body: JSON.stringify({ job, token: authToken }),
       });
       const json = await res.json();
 
@@ -212,7 +241,7 @@ export default function AdminDashboardPage() {
           "Content-Type": "application/json",
           "x-admin-token": authToken,
         },
-        body: JSON.stringify({ id }),
+        body: JSON.stringify({ id, token: authToken }),
       });
       const json = await res.json();
 
@@ -251,6 +280,7 @@ export default function AdminDashboardPage() {
         },
         body: JSON.stringify({
           id: editingItem.id,
+          token: authToken,
           market: editMarket,
           odds: parseFloat(editOdds),
           result: editResult,

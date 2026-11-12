@@ -7,6 +7,7 @@
 
 import { apiSportsFetch } from "./api-sports";
 import { isWhitelistedLeague, getCountryFlag } from "./leagues";
+import { fetchMultiProviderFixturesForDate, fetchMultiProviderWeekendFixtures } from "./mappers/normalizer";
 
 export interface NormalizedMatchFixture {
   apiFixtureId: number;
@@ -55,60 +56,89 @@ export function toApiDate(d: Date): string {
 export async function fetchFixturesForDate(
   date: string
 ): Promise<{ fixtures: NormalizedMatchFixture[]; totalRaw: number; filteredCount: number; isMock: boolean; error?: string }> {
-  const result = await apiSportsFetch<RawApiFixturePayload[]>("fixtures", {
-    params: { date },
-    revalidateSeconds: 600, // Cache for 10 minutes
-  });
+  const nowMs = Date.now();
 
-  if (result.success && result.data && Array.isArray(result.data)) {
-    const rawMatches = result.data;
-    const nowMs = Date.now();
+  // 1. Primary: Fetch from 3-API Multi-Provider Architecture (Football-Data & API-Ninjas)
+  try {
+    const multiFixtures = await fetchMultiProviderFixturesForDate(date);
+    if (multiFixtures.length > 0) {
+      const eligible = multiFixtures.filter((item) => {
+        if (item.status !== "NS") return false;
+        const kickoffMs = new Date(item.kickoffTime).getTime();
+        if (!isNaN(kickoffMs) && kickoffMs <= nowMs) return false;
+        return true;
+      });
 
-    // Apply Step 16 Whitelist Filter AND Strict Future-Games Filter:
-    // 1. ALL leagues in the 54 approved countries + Int. Clubs
-    // 2. Strictly enforce status.short === 'NS' (Not Started)
-    // 3. Strictly ignore games that have already kicked off (kickoffTime in the future)
-    const filtered = rawMatches.filter((item) => {
-      if (!isWhitelistedLeague(item.league)) return false;
-      if (item.fixture?.status?.short !== "NS") return false;
-
-      const kickoffMs = new Date(item.fixture.date).getTime();
-      if (!isNaN(kickoffMs) && kickoffMs <= nowMs) {
-        return false;
+      if (eligible.length > 0) {
+        return {
+          fixtures: eligible,
+          totalRaw: multiFixtures.length,
+          filteredCount: eligible.length,
+          isMock: false,
+        };
       }
-
-      return true;
-    });
-
-    const normalized: NormalizedMatchFixture[] = filtered.map((item) => ({
-      apiFixtureId: item.fixture.id,
-      homeTeamId: item.teams.home.id,
-      homeTeam: item.teams.home.name,
-      awayTeamId: item.teams.away.id,
-      awayTeam: item.teams.away.name,
-      leagueId: item.league.id,
-      leagueName: item.league.name,
-      country: item.league.country,
-      countryFlag: getCountryFlag(item.league.country),
-      kickoffTime: item.fixture.date,
-      status: item.fixture.status.short,
-    }));
-
-    return {
-      fixtures: normalized,
-      totalRaw: rawMatches.length,
-      filteredCount: normalized.length,
-      isMock: false,
-    };
+    }
+  } catch (multiErr) {
+    console.warn("[Fixtures] Multi-provider fetch failed, checking secondary source:", multiErr);
   }
 
-  // Strict live data only: return empty array if no live fixtures available from API-Sports
+  // 2. Secondary fallback: API-Sports (only if SPORTS_API_KEY is configured)
+  const sportsKey = process.env.SPORTS_API_KEY || process.env.SPORTS_DATA_API_KEY;
+  if (sportsKey && sportsKey !== "your_sports_api_key_here") {
+    const result = await apiSportsFetch<RawApiFixturePayload[]>("fixtures", {
+      params: { date },
+      revalidateSeconds: 600, // Cache for 10 minutes
+    });
+
+    if (result.success && result.data && Array.isArray(result.data)) {
+      const rawMatches = result.data;
+
+      // Apply Step 16 Whitelist Filter AND Strict Future-Games Filter:
+      // 1. ALL leagues in the 54 approved countries + Int. Clubs
+      // 2. Strictly enforce status.short === 'NS' (Not Started)
+      // 3. Strictly ignore games that have already kicked off (kickoffTime in the future)
+      const filtered = rawMatches.filter((item) => {
+        if (!isWhitelistedLeague(item.league)) return false;
+        if (item.fixture?.status?.short !== "NS") return false;
+
+        const kickoffMs = new Date(item.fixture.date).getTime();
+        if (!isNaN(kickoffMs) && kickoffMs <= nowMs) {
+          return false;
+        }
+
+        return true;
+      });
+
+      const normalized: NormalizedMatchFixture[] = filtered.map((item) => ({
+        apiFixtureId: item.fixture.id,
+        homeTeamId: item.teams.home.id,
+        homeTeam: item.teams.home.name,
+        awayTeamId: item.teams.away.id,
+        awayTeam: item.teams.away.name,
+        leagueId: item.league.id,
+        leagueName: item.league.name,
+        country: item.league.country,
+        countryFlag: getCountryFlag(item.league.country),
+        kickoffTime: item.fixture.date,
+        status: item.fixture.status.short,
+      }));
+
+      return {
+        fixtures: normalized,
+        totalRaw: rawMatches.length,
+        filteredCount: normalized.length,
+        isMock: false,
+      };
+    }
+  }
+
+  // Strict live data only: return empty array if no live fixtures available
   return {
     fixtures: [],
     totalRaw: 0,
     filteredCount: 0,
     isMock: false,
-    error: result.error || "No fixtures returned from API-Sports",
+    error: "No upcoming live fixtures found for this date across European and Global providers.",
   };
 }
 
@@ -119,7 +149,6 @@ export async function fetchWeekendFixturesPool(
   startDate?: string,
   endDate?: string
 ): Promise<{ fixtures: NormalizedMatchFixture[]; isMock: boolean; error?: string }> {
-  // If dates are provided, fetch them; otherwise default to upcoming weekend
   const now = new Date();
   const day = now.getUTCDay();
   const satOffset = (6 - day + 7) % 7;
@@ -130,7 +159,31 @@ export async function fetchWeekendFixturesPool(
 
   const fromDate = startDate || toApiDate(sat);
   const toDate = endDate || toApiDate(sun);
+  const nowMs = Date.now();
 
+  // 1. Primary: Multi-provider weekend pool
+  try {
+    const multiWeekend = await fetchMultiProviderWeekendFixtures(fromDate, toDate);
+    if (multiWeekend.length > 0) {
+      const eligible = multiWeekend.filter((item) => {
+        if (item.status !== "NS") return false;
+        const kickoffMs = new Date(item.kickoffTime).getTime();
+        if (!isNaN(kickoffMs) && kickoffMs <= nowMs) return false;
+        return true;
+      });
+
+      if (eligible.length > 0) {
+        return {
+          fixtures: eligible,
+          isMock: false,
+        };
+      }
+    }
+  } catch (multiErr) {
+    console.warn("[Fixtures] Multi-provider weekend fetch failed, checking secondary:", multiErr);
+  }
+
+  // 2. Secondary fallback
   const [satResults, sunResults] = await Promise.all([
     fetchFixturesForDate(fromDate),
     fetchFixturesForDate(toDate),
