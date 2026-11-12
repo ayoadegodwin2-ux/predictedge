@@ -2,7 +2,7 @@ import { cn } from "@/lib/utils";
 import { CalendarOff, Sunrise, Coffee, type LucideIcon } from "lucide-react";
 
 interface EmptyStateProps {
-  variant: "daily" | "weekend" | "generic";
+  variant: "daily" | "weekend" | "generic" | "history";
   className?: string;
 }
 
@@ -24,6 +24,11 @@ const variants: Record<
     icon: CalendarOff,
     heading: "Nothing to show right now",
     body: "There are no predictions available for this view. New data is loaded automatically — no action needed.",
+  },
+  history: {
+    icon: CalendarOff,
+    heading: "No historical records yet",
+    body: "There are no previous predictions logged in the database. As daily and weekend slates run and settle, verified outcomes will appear here.",
   },
 };
 

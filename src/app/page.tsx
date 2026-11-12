@@ -5,6 +5,7 @@ import { db } from "@/db";
 import { predictions, matches } from "@/db/schema";
 import { eq, desc } from "drizzle-orm";
 import { getCountryFlag } from "@/lib/leagues";
+import { get14DayHistoryFromDb } from "@/lib/engine/history";
 import { DailyPickClient } from "@/components/predictions/DailyPickClient";
 import type { Prediction } from "@/lib/types";
 
@@ -62,7 +63,10 @@ async function getLatestDailyPick(): Promise<Prediction | null> {
 }
 
 export default async function DailyPickPage() {
-  const latestPick = await getLatestDailyPick();
+  const [latestPick, historyList] = await Promise.all([
+    getLatestDailyPick(),
+    get14DayHistoryFromDb(),
+  ]);
 
-  return <DailyPickClient initialPick={latestPick} />;
+  return <DailyPickClient initialPick={latestPick} initialHistory={historyList} />;
 }

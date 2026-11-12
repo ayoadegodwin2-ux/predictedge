@@ -44,7 +44,7 @@ export async function get14DayHistoryFromDb(): Promise<HistoricalPredictionItem[
       .where(gte(predictions.createdAt, fourteenDaysAgo))
       .orderBy(desc(predictions.createdAt));
 
-    if (rows && rows.length >= 5) {
+    if (rows) {
       return rows.map((r) => ({
         id: r.id,
         matchId: r.matchId,
@@ -65,8 +65,8 @@ export async function get14DayHistoryFromDb(): Promise<HistoricalPredictionItem[
       }));
     }
   } catch (err) {
-    console.warn("Could not query DB for history, falling back to calibrated history:", err);
+    console.warn("Could not query DB for history:", err);
   }
 
-  return getCalibrated14DayHistory();
+  return [];
 }

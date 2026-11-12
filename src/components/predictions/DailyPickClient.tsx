@@ -7,7 +7,6 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import type { Prediction } from "@/lib/types";
 import {
   getLast14Days,
-  getCalibrated14DayHistory,
   type HistoricalPredictionItem,
 } from "@/lib/engine/history-shared";
 import Link from "next/link";
@@ -17,6 +16,7 @@ import {
   History,
   CheckCircle2,
   XCircle,
+  Clock,
   ArrowRight,
   Send,
 } from "lucide-react";
@@ -24,9 +24,10 @@ import { cn } from "@/lib/utils";
 
 interface DailyPickClientProps {
   initialPick: Prediction | null;
+  initialHistory?: HistoricalPredictionItem[];
 }
 
-export function DailyPickClient({ initialPick }: DailyPickClientProps) {
+export function DailyPickClient({ initialPick, initialHistory = [] }: DailyPickClientProps) {
   const [formattedDate, setFormattedDate] = useState("");
   const [viewMode, setViewMode] = useState<"live" | "skeleton" | "empty">("live");
   const [selectedDateIdx, setSelectedDateIdx] = useState(0); // 0 is today
@@ -38,7 +39,7 @@ export function DailyPickClient({ initialPick }: DailyPickClientProps) {
       isToday: boolean;
     }>
   >([]);
-  const [historicalPicks, setHistoricalPicks] = useState<HistoricalPredictionItem[]>([]);
+  const [historicalPicks, setHistoricalPicks] = useState<HistoricalPredictionItem[]>(initialHistory);
   const [dailyPick, setDailyPick] = useState<Prediction | null>(initialPick);
 
   useEffect(() => {
@@ -51,14 +52,13 @@ export function DailyPickClient({ initialPick }: DailyPickClientProps) {
         })
       );
       setDaysList(getLast14Days());
-      setHistoricalPicks(getCalibrated14DayHistory());
 
       // Bypass fetch cache: fetch fresh daily pick with { cache: 'no-store' }
       fetch("/api/predictions/daily", { cache: "no-store" })
         .then((res) => res.json())
         .then((json) => {
-          if (json.success && json.data) {
-            setDailyPick(json.data);
+          if (json.success) {
+            setDailyPick(json.data || null);
           }
         })
         .catch((err) => {
@@ -69,12 +69,12 @@ export function DailyPickClient({ initialPick }: DailyPickClientProps) {
       fetch("/api/predictions/history", { cache: "no-store" })
         .then((res) => res.json())
         .then((json) => {
-          if (json.success && json.data?.history && json.data.history.length > 0) {
+          if (json.success && Array.isArray(json.data?.history)) {
             setHistoricalPicks(json.data.history);
           }
         })
         .catch(() => {
-          // Calibrated fallback active
+          // Keep current state
         });
     }, 0);
 
@@ -82,7 +82,8 @@ export function DailyPickClient({ initialPick }: DailyPickClientProps) {
   }, []);
 
   // Determine current active pick based on selected date
-  const activeHistorical = historicalPicks[selectedDateIdx] || historicalPicks[0];
+  const selectedDateStr = daysList[selectedDateIdx]?.dateStr;
+  const activeHistorical = historicalPicks.find((p) => p.predictionDate === selectedDateStr) || null;
   const isViewingToday = selectedDateIdx === 0;
 
   const currentDisplayPick = isViewingToday
@@ -199,7 +200,7 @@ export function DailyPickClient({ initialPick }: DailyPickClientProps) {
             <div className="flex items-center gap-2 overflow-x-auto pb-1">
               {daysList.map((day, idx) => {
                 const isSelected = selectedDateIdx === idx;
-                const pastItem = historicalPicks[idx];
+                const pastItem = historicalPicks.find((p) => p.predictionDate === day.dateStr);
 
                 return (
                   <button
@@ -234,7 +235,7 @@ export function DailyPickClient({ initialPick }: DailyPickClientProps) {
                       >
                         ✓ WON
                       </span>
-                    ) : (
+                    ) : pastItem?.result === "LOST" ? (
                       <span
                         className={cn(
                           "rounded px-1 py-0.5 text-[10px] font-bold",
@@ -242,6 +243,24 @@ export function DailyPickClient({ initialPick }: DailyPickClientProps) {
                         )}
                       >
                         LOST
+                      </span>
+                    ) : pastItem?.result === "PENDING" ? (
+                      <span
+                        className={cn(
+                          "rounded px-1 py-0.5 text-[10px] font-bold",
+                          isSelected ? "bg-amber-950 text-amber-300" : "bg-amber-500/20 text-amber-400"
+                        )}
+                      >
+                        PENDING
+                      </span>
+                    ) : (
+                      <span
+                        className={cn(
+                          "rounded px-1 py-0.5 text-[10px] font-bold",
+                          isSelected ? "bg-slate-800 text-slate-300" : "bg-slate-800/40 text-slate-500"
+                        )}
+                      >
+                        —
                       </span>
                     )}
                   </button>
@@ -262,18 +281,26 @@ export function DailyPickClient({ initialPick }: DailyPickClientProps) {
                 Viewing Archive Selection for <strong>{daysList[selectedDateIdx]?.displayLabel || "Archive"} ({daysList[selectedDateIdx]?.dateStr || ""})</strong>
               </span>
             </div>
-            <div className="flex items-center gap-1.5 font-bold">
-              <span>Result:</span>
-              {activeHistorical.result === "WON" ? (
-                <span className="text-emerald-400 flex items-center gap-1">
-                  <CheckCircle2 className="h-4 w-4" /> WON
-                </span>
-              ) : (
-                <span className="text-red-400 flex items-center gap-1">
-                  <XCircle className="h-4 w-4" /> LOST
-                </span>
-              )}
-            </div>
+            {activeHistorical ? (
+              <div className="flex items-center gap-1.5 font-bold">
+                <span>Result:</span>
+                {activeHistorical.result === "WON" ? (
+                  <span className="text-emerald-400 flex items-center gap-1">
+                    <CheckCircle2 className="h-4 w-4" /> WON
+                  </span>
+                ) : activeHistorical.result === "LOST" ? (
+                  <span className="text-red-400 flex items-center gap-1">
+                    <XCircle className="h-4 w-4" /> LOST
+                  </span>
+                ) : (
+                  <span className="text-amber-400 flex items-center gap-1">
+                    <Clock className="h-4 w-4" /> PENDING
+                  </span>
+                )}
+              </div>
+            ) : (
+              <span className="text-slate-400 text-xs font-semibold">No record logged</span>
+            )}
           </div>
         )}
 
@@ -314,7 +341,7 @@ export function DailyPickClient({ initialPick }: DailyPickClientProps) {
             </>
           ) : (
             <div className="rounded-3xl border border-slate-800 bg-slate-900/30 p-8">
-              <EmptyState variant="daily" />
+              <EmptyState variant={isViewingToday ? "daily" : "generic"} />
             </div>
           )
         )}

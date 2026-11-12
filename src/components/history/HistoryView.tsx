@@ -3,6 +3,7 @@
 import { useState, useMemo } from "react";
 import type { HistoricalPredictionItem, AccuracySummary } from "@/lib/engine/history-shared";
 import { ConfidenceBadge } from "@/components/ui/ConfidenceBadge";
+import { EmptyState } from "@/components/ui/EmptyState";
 import {
   CheckCircle2,
   XCircle,
@@ -213,163 +214,171 @@ export function HistoryView({ initialHistory, daysList, accuracy }: HistoryViewP
           <span className="text-slate-500">Immutable algorithm logs</span>
         </div>
 
-        {/* Desktop Table View */}
-        <div className="hidden md:block overflow-hidden rounded-2xl border border-slate-800 bg-slate-950 shadow-xl">
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse text-left text-sm">
-              <thead className="border-b border-slate-800 bg-slate-900/80">
-                <tr className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
-                  <th scope="col" className="py-3.5 pl-6 pr-4">
-                    Date &amp; Kickoff
-                  </th>
-                  <th scope="col" className="py-3.5 px-4">
-                    Matchup
-                  </th>
-                  <th scope="col" className="py-3.5 px-4">
-                    League
-                  </th>
-                  <th scope="col" className="py-3.5 px-4">
-                    Market
-                  </th>
-                  <th scope="col" className="py-3.5 px-4 text-right">
-                    Odds
-                  </th>
-                  <th scope="col" className="py-3.5 px-4 text-center">
-                    Certainty
-                  </th>
-                  <th scope="col" className="py-3.5 pr-6 pl-4 text-right">
-                    Result
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-800/60 font-body">
-                {filteredHistory.map((item, idx) => (
-                  <tr
-                    key={item.id}
-                    className={cn(
-                      "min-h-[52px] transition-colors hover:bg-slate-800/50",
-                      idx % 2 === 0 ? "bg-slate-950" : "bg-slate-900/40"
-                    )}
-                  >
-                    <td className="py-4 pl-6 pr-4 text-xs font-semibold text-slate-300">
-                      <div>{item.predictionDate}</div>
-                      <span className="text-[11px] text-slate-500">20:00 UTC</span>
-                    </td>
+        {filteredHistory.length === 0 ? (
+          <div className="rounded-3xl border border-slate-800 bg-slate-900/30 p-8">
+            <EmptyState variant="history" />
+          </div>
+        ) : (
+          <>
+            {/* Desktop Table View */}
+            <div className="hidden md:block overflow-hidden rounded-2xl border border-slate-800 bg-slate-950 shadow-xl">
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse text-left text-sm">
+                  <thead className="border-b border-slate-800 bg-slate-900/80">
+                    <tr className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                      <th scope="col" className="py-3.5 pl-6 pr-4">
+                        Date &amp; Kickoff
+                      </th>
+                      <th scope="col" className="py-3.5 px-4">
+                        Matchup
+                      </th>
+                      <th scope="col" className="py-3.5 px-4">
+                        League
+                      </th>
+                      <th scope="col" className="py-3.5 px-4">
+                        Market
+                      </th>
+                      <th scope="col" className="py-3.5 px-4 text-right">
+                        Odds
+                      </th>
+                      <th scope="col" className="py-3.5 px-4 text-center">
+                        Certainty
+                      </th>
+                      <th scope="col" className="py-3.5 pr-6 pl-4 text-right">
+                        Result
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-800/60 font-body">
+                    {filteredHistory.map((item, idx) => (
+                      <tr
+                        key={item.id}
+                        className={cn(
+                          "min-h-[52px] transition-colors hover:bg-slate-800/50",
+                          idx % 2 === 0 ? "bg-slate-950" : "bg-slate-900/40"
+                        )}
+                      >
+                        <td className="py-4 pl-6 pr-4 text-xs font-semibold text-slate-300">
+                          <div>{item.predictionDate}</div>
+                          <span className="text-[11px] text-slate-500">20:00 UTC</span>
+                        </td>
 
-                    <td className="py-4 px-4 font-medium">
-                      <div className="flex items-center gap-2 font-heading font-bold text-slate-100">
-                        <span>{item.homeTeam}</span>
-                        <span className="text-xs text-slate-500 font-normal">vs</span>
-                        <span>{item.awayTeam}</span>
-                      </div>
-                    </td>
+                        <td className="py-4 px-4 font-medium">
+                          <div className="flex items-center gap-2 font-heading font-bold text-slate-100">
+                            <span>{item.homeTeam}</span>
+                            <span className="text-xs text-slate-500 font-normal">vs</span>
+                            <span>{item.awayTeam}</span>
+                          </div>
+                        </td>
 
-                    <td className="py-4 px-4 text-xs text-slate-300">
-                      <div className="flex items-center gap-1.5">
-                        <span>{item.countryFlag}</span>
-                        <span>{item.leagueName}</span>
-                      </div>
-                    </td>
+                        <td className="py-4 px-4 text-xs text-slate-300">
+                          <div className="flex items-center gap-1.5">
+                            <span>{item.countryFlag}</span>
+                            <span>{item.leagueName}</span>
+                          </div>
+                        </td>
 
-                    <td className="py-4 px-4">
-                      <span className="inline-flex items-center rounded-lg border border-slate-800 bg-slate-900 px-2.5 py-1 text-xs font-semibold text-slate-200">
-                        {item.market}
-                      </span>
-                    </td>
+                        <td className="py-4 px-4">
+                          <span className="inline-flex items-center rounded-lg border border-slate-800 bg-slate-900 px-2.5 py-1 text-xs font-semibold text-slate-200">
+                            {item.market}
+                          </span>
+                        </td>
 
-                    <td className="py-4 px-4 text-right font-heading text-sm font-extrabold text-white">
-                      {item.odds.toFixed(2)}
-                    </td>
+                        <td className="py-4 px-4 text-right font-heading text-sm font-extrabold text-white">
+                          {item.odds.toFixed(2)}
+                        </td>
 
-                    <td className="py-4 px-4 text-center">
+                        <td className="py-4 px-4 text-center">
+                          <ConfidenceBadge
+                            score={item.confidenceScore}
+                            variant="compact"
+                            showLabel={false}
+                          />
+                        </td>
+
+                        <td className="py-4 pr-6 pl-4 text-right">
+                          {item.result === "WON" && (
+                            <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-xs font-bold text-emerald-400">
+                              <CheckCircle2 className="h-3.5 w-3.5" />
+                              <span>WON</span>
+                            </span>
+                          )}
+                          {item.result === "LOST" && (
+                            <span className="inline-flex items-center gap-1 rounded-full border border-red-500/30 bg-red-500/10 px-3 py-1 text-xs font-bold text-red-400">
+                              <XCircle className="h-3.5 w-3.5" />
+                              <span>LOST</span>
+                            </span>
+                          )}
+                          {item.result === "PENDING" && (
+                            <span className="inline-flex items-center gap-1 rounded-full border border-amber-500/30 bg-amber-500/10 px-3 py-1 text-xs font-bold text-amber-400">
+                              <Clock className="h-3.5 w-3.5" />
+                              <span>PENDING</span>
+                            </span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Mobile Cards View (>=44px touch targets) */}
+            <div className="block md:hidden space-y-3">
+              {filteredHistory.map((item, idx) => (
+                <div
+                  key={item.id}
+                  className={cn(
+                    "rounded-2xl border border-slate-800 p-4 transition-smooth",
+                    idx % 2 === 0 ? "bg-slate-950" : "bg-slate-900/60"
+                  )}
+                >
+                  <div className="flex items-center justify-between text-xs text-slate-400 mb-2">
+                    <span>{item.predictionDate}</span>
+                    <div className="flex items-center gap-1.5">
+                      <span>{item.countryFlag}</span>
+                      <span className="font-semibold text-slate-300">{item.leagueName}</span>
+                    </div>
+                  </div>
+
+                  <div className="font-heading text-base font-bold text-white mb-2.5">
+                    {item.homeTeam} vs {item.awayTeam}
+                  </div>
+
+                  <div className="flex items-center justify-between border-t border-slate-800/80 pt-3">
+                    <span className="rounded-lg border border-slate-800 bg-slate-900 px-2.5 py-1 text-xs font-semibold text-slate-200">
+                      {item.market} @ {item.odds.toFixed(2)}
+                    </span>
+
+                    <div className="flex items-center gap-2">
                       <ConfidenceBadge
                         score={item.confidenceScore}
                         variant="compact"
                         showLabel={false}
                       />
-                    </td>
 
-                    <td className="py-4 pr-6 pl-4 text-right">
                       {item.result === "WON" && (
-                        <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-xs font-bold text-emerald-400">
-                          <CheckCircle2 className="h-3.5 w-3.5" />
-                          <span>WON</span>
+                        <span className="rounded-full bg-emerald-500/10 border border-emerald-500/30 px-2.5 py-1 text-xs font-bold text-emerald-400">
+                          WON
                         </span>
                       )}
                       {item.result === "LOST" && (
-                        <span className="inline-flex items-center gap-1 rounded-full border border-red-500/30 bg-red-500/10 px-3 py-1 text-xs font-bold text-red-400">
-                          <XCircle className="h-3.5 w-3.5" />
-                          <span>LOST</span>
+                        <span className="rounded-full bg-red-500/10 border border-red-500/30 px-2.5 py-1 text-xs font-bold text-red-400">
+                          LOST
                         </span>
                       )}
                       {item.result === "PENDING" && (
-                        <span className="inline-flex items-center gap-1 rounded-full border border-amber-500/30 bg-amber-500/10 px-3 py-1 text-xs font-bold text-amber-400">
-                          <Clock className="h-3.5 w-3.5" />
-                          <span>PENDING</span>
+                        <span className="rounded-full bg-amber-500/10 border border-amber-500/30 px-2.5 py-1 text-xs font-bold text-amber-400">
+                          PENDING
                         </span>
                       )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        {/* Mobile Cards View (>=44px touch targets) */}
-        <div className="block md:hidden space-y-3">
-          {filteredHistory.map((item, idx) => (
-            <div
-              key={item.id}
-              className={cn(
-                "rounded-2xl border border-slate-800 p-4 transition-smooth",
-                idx % 2 === 0 ? "bg-slate-950" : "bg-slate-900/60"
-              )}
-            >
-              <div className="flex items-center justify-between text-xs text-slate-400 mb-2">
-                <span>{item.predictionDate}</span>
-                <div className="flex items-center gap-1.5">
-                  <span>{item.countryFlag}</span>
-                  <span className="font-semibold text-slate-300">{item.leagueName}</span>
+                    </div>
+                  </div>
                 </div>
-              </div>
-
-              <div className="font-heading text-base font-bold text-white mb-2.5">
-                {item.homeTeam} vs {item.awayTeam}
-              </div>
-
-              <div className="flex items-center justify-between border-t border-slate-800/80 pt-3">
-                <span className="rounded-lg border border-slate-800 bg-slate-900 px-2.5 py-1 text-xs font-semibold text-slate-200">
-                  {item.market} @ {item.odds.toFixed(2)}
-                </span>
-
-                <div className="flex items-center gap-2">
-                  <ConfidenceBadge
-                    score={item.confidenceScore}
-                    variant="compact"
-                    showLabel={false}
-                  />
-
-                  {item.result === "WON" && (
-                    <span className="rounded-full bg-emerald-500/10 border border-emerald-500/30 px-2.5 py-1 text-xs font-bold text-emerald-400">
-                      WON
-                    </span>
-                  )}
-                  {item.result === "LOST" && (
-                    <span className="rounded-full bg-red-500/10 border border-red-500/30 px-2.5 py-1 text-xs font-bold text-red-400">
-                      LOST
-                    </span>
-                  )}
-                  {item.result === "PENDING" && (
-                    <span className="rounded-full bg-amber-500/10 border border-amber-500/30 px-2.5 py-1 text-xs font-bold text-amber-400">
-                      PENDING
-                    </span>
-                  )}
-                </div>
-              </div>
+              ))}
             </div>
-          ))}
-        </div>
+          </>
+        )}
       </div>
     </div>
   );
